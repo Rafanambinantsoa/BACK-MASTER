@@ -1,4 +1,5 @@
-import { Column, Entity, IsNull, PrimaryGeneratedColumn, } from "typeorm";
+import { User } from "src/user/entities/user.entity";
+import { Column, Entity, IsNull, OneToMany, PrimaryGeneratedColumn, } from "typeorm";
 
 @Entity()
 export class Role {
@@ -14,4 +15,8 @@ export class Role {
 
     @Column({ default: "jaune" })
     couleur: string;
+
+    @OneToMany(() => User, (user) => user.role)
+    users: User[];
+
 }

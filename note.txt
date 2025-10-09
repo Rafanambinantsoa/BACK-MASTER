@@ -15,4 +15,6 @@ nest g ressource
 NestJS suit une architecture modulaire orientée services, et supporte très bien Clean Architecture si tu veux aller plus loin.
 
 
+eager = affiche automaotiquement les relations
+
 860956040866552
