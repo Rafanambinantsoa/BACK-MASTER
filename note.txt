@@ -1,0 +1,18 @@
+-login
+-Protection des route
+- Relation  
+- Problem d'unicite de donne
+
+- Mailing 
+- Mise a jour mot de passe / Mot de passe forget
+- Les Real time 
+- Upload image 
+
+//////////
+Creation d'un crud
+nest g ressource 
+
+NestJS suit une architecture modulaire orientée services, et supporte très bien Clean Architecture si tu veux aller plus loin.
+
+
+860956040866552
