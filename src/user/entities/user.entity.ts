@@ -13,7 +13,7 @@ export class User {
     email: string;
 
     @Column()
-    statut: string;
+    statut: boolean;
 
     @Column()
     password: string;
