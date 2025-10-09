@@ -4,6 +4,7 @@ import { UpdateUserDto } from './dto/update-user.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { User } from './entities/user.entity';
 import { Repository } from 'typeorm';
+import { NotFoundException } from '@nestjs/common';
 
 @Injectable()
 export class UserService {
@@ -18,18 +19,40 @@ export class UserService {
   }
 
   findAll() {
-    return `This action returns all user`;
+    return this.userRepository.find();
   }
 
-  findOne(id: number) {
-    return `This action returns a #${id} user`;
+  async findOne(id: number) {
+    const data = await this.userRepository.findOneBy({ id });
+    // retourner une status code avec un message  404
+    if (data === null) {
+      // ✅ lance une exception 404
+      throw new NotFoundException(`User with id ${id} not found`);
+    }
+    return data;
   }
 
-  update(id: number, updateUserDto: UpdateUserDto) {
-    return `This action updates a #${id} user`;
+  async update(id: number, updateUserDto: UpdateUserDto) {
+    const data = await this.userRepository.findOneBy({ id });
+    // retourner une status code avec un message  404
+    if (data === null) {
+      // ✅ lance une exception 404
+      throw new NotFoundException(`User with id ${id} not found`);
+    }
+
+    this.userRepository.merge(data, updateUserDto);
+    return this.userRepository.save(data);
   }
 
-  remove(id: number) {
-    return `This action removes a #${id} user`;
+  async remove(id: number) {
+    const data = await this.userRepository.findOneBy({ id });
+    // retourner une status code avec un message  404
+    if (data === null) {
+      // ✅ lance une exception 404
+      throw new NotFoundException(`User with id ${id} not found`);
+    }
+
+    await this.userRepository.delete(id);
+    return { message: `User with id ${id} deleted` };
   }
 }
