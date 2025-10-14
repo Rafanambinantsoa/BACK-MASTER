@@ -74,6 +74,16 @@ export class MenuService {
     }
 
     this.menuRepo.remove(data)
-    return { message: `User with id ${id} deleted` };
+
+    //effacer  l'image associée
+    if (data.image) {
+      const fs = require('fs');
+      const path = require('path');
+      const imagePath = path.join(__dirname, '../../uploads/menu', data.image);
+      if (fs.existsSync(imagePath)) {
+        fs.unlinkSync(imagePath);
+      }
+    }
+    return { message: `Menu with id ${id} deleted` };
   }
 }
