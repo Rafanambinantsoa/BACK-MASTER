@@ -21,7 +21,14 @@ export class MenuService {
   }
 
   async findAll() {
-    return this.menuRepo.find();
+    const menu = await this.menuRepo.find();
+
+    const baseUrl = process.env.BASE_URL || 'http://localhost:3000/uploads/menu';
+
+    return menu.map((menu) => ({
+      ...menu,
+      imageUrl: menu.image ? `${baseUrl}/${menu.image}` : null,
+    }));
   }
 
   async findOne(id: number) {
@@ -30,7 +37,10 @@ export class MenuService {
     if (data === null) {
       throw new NotFoundException('Menus Introuvable')
     }
-    return data;
+    return {
+      ...data,
+      imageUrl: data.image ? `${process.env.BASE_URL || 'http://localhost:3000/uploads/menu'}/${data.image}` : null,
+    };
   }
 
   async update(id: number, updateMenuDto: UpdateMenuDto) {
@@ -38,6 +48,16 @@ export class MenuService {
 
     if (data === null) {
       throw new NotFoundException('Menus Introuvable')
+    }
+
+    //Suppression de l'ancienne image si une nouvelle est uploadée
+    if (updateMenuDto.image && data.image) {
+      const fs = require('fs');
+      const path = require('path');
+      const imagePath = path.join(__dirname, '../../uploads/menu', data.image);
+      if (fs.existsSync(imagePath)) {
+        fs.unlinkSync(imagePath);
+      }
     }
 
     const user = this.menuRepo.merge(data, updateMenuDto)

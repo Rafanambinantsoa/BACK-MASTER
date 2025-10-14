@@ -27,7 +27,11 @@ export class MenuController {
   }
 
   @Patch(':id')
-  update(@Param('id') id: string, @Body() updateMenuDto: UpdateMenuDto) {
+  @UploadImageInterceptor('menu')
+  update(@Param('id') id: string, @Body() updateMenuDto: UpdateMenuDto, @UploadedFile() file: Express.Multer.File) {
+    if (file) {
+      updateMenuDto.image = file.filename;
+    }
     return this.menuService.update(+id, updateMenuDto);
   }
 
