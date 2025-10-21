@@ -23,9 +23,9 @@ export class UserService {
     // else create the user
     const role = await this.roleRepository.findOneBy({ id: createUserDto.role_id });
 
-    if (role === null) {
-      throw new NotFoundException("Role  inexistant")
-    }
+    // if (role === null) {
+    //   throw new NotFoundException("Role  inexistant")
+    // }
 
     const user = this.userRepository.create(createUserDto);
     return this.userRepository.save(user);

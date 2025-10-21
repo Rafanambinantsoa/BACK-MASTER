@@ -1,4 +1,4 @@
-import { IsBoolean, IsNotEmpty, MinLength } from "class-validator";
+import { IsBoolean, IsNotEmpty, IsOptional, MinLength } from "class-validator";
 
 export class CreateUserDto {
     @IsNotEmpty({ message: 'Le nom est obligatoire' })
@@ -11,7 +11,7 @@ export class CreateUserDto {
     @IsBoolean({ message: 'Le statut doit être un booléen' })
     statut: boolean;
 
-    @IsNotEmpty({ message: 'Le role_id est obligatoire' })
+    @IsOptional()
     role_id: number;
 
     @IsNotEmpty({ message: 'Le mot de passe est obligatoire' })

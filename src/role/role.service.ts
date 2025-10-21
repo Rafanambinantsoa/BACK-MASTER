@@ -4,6 +4,7 @@ import { UpdateRoleDto } from './dto/update-role.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Role } from './entities/role.entity';
 import { Repository } from 'typeorm';
+import { User } from 'src/user/entities/user.entity';
 
 @Injectable()
 export class RoleService {
@@ -11,6 +12,9 @@ export class RoleService {
   constructor(
     @InjectRepository(Role)
     private roleRepository: Repository<Role>,
+
+    @InjectRepository(User)
+    private userRepository: Repository<User>,
   ) { }
 
   async create(createRoleDto: CreateRoleDto) {
@@ -45,12 +49,19 @@ export class RoleService {
 
   async remove(id: number) {
     const role = await this.roleRepository.findOneBy({ id });
-    if (!role) {
-      throw new NotFoundException(`Role with ID ${id} not found`);
-    }
+    if (!role) throw new NotFoundException(`Role with ID ${id} not found`);
+
+    // Met le champ role_id à NULL pour les utilisateurs liés
+    await this.userRepository
+      .createQueryBuilder()
+      .update('user')
+      .set({ role: null })
+      .where('role_id = :id', { id })
+      .execute();
+
     await this.roleRepository.delete(id);
 
-    return { message: `Role with ID ${id} deleted` };
-
+    return { message: `Role with ID ${id} deleted and users unlinked.` };
   }
+
 }
