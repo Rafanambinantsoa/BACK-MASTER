@@ -4,18 +4,35 @@ import { UpdateMenuDto } from './dto/update-menu.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Menu } from './entities/menu.entity';
 import { Repository } from 'typeorm';
+import { TypeMenu } from 'src/type_menu/entities/type_menu.entity';
 
 @Injectable()
 export class MenuService {
 
   constructor(
     @InjectRepository(Menu)
-    private menuRepo: Repository<Menu>
+    private menuRepo: Repository<Menu>,
+
+    @InjectRepository(TypeMenu)
+    private typeMenuRepo: Repository<TypeMenu>
   ) { }
 
   async create(createMenuDto: CreateMenuDto) {
+
+    const typeMenu = await this.typeMenuRepo.findOneBy({ id: createMenuDto.type_menu_id });
+
+    if (typeMenu === null) {
+      throw new NotFoundException("Type de menu inexistant")
+    }
     const data = this.menuRepo.create(createMenuDto);
     const menu = await this.menuRepo.save(data);
+    //AJoute l;image url  COMPLTE
+    const baseUrl = process.env.BASE_URL || 'http://localhost:3000/uploads/menu';
+    if (menu.image) {
+      menu['imageUrl'] = `${baseUrl}/${menu.image}`;
+    } else {
+      menu['imageUrl'] = null;
+    }
 
     return menu;
   }
@@ -44,7 +61,7 @@ export class MenuService {
   }
 
   async update(id: number, updateMenuDto: UpdateMenuDto) {
-    const data = await this.menuRepo.findOne({ where: { id } });
+    const data = await this.menuRepo.findOne({ where: { id }, relations: ['type_menu'] });
 
     if (data === null) {
       throw new NotFoundException('Menus Introuvable')
@@ -60,7 +77,24 @@ export class MenuService {
       }
     }
 
+    if (updateMenuDto.type_menu_id) {
+      const typeMenu = await this.typeMenuRepo.findOneBy({ id: updateMenuDto.type_menu_id });
+
+      if (typeMenu === null) {
+        throw new NotFoundException("Type de menu inexistant")
+      }
+
+      data.type_menu = typeMenu;
+    }
+
     const user = this.menuRepo.merge(data, updateMenuDto)
+    //AJoute l;image url  COMPLTE
+    const baseUrl = process.env.BASE_URL || 'http://localhost:3000/uploads/menu';
+    if (user.image) {
+      user['imageUrl'] = `${baseUrl}/${user.image}`;
+    } else {
+      user['imageUrl'] = null;
+    }
 
     return this.menuRepo.save(user)
 

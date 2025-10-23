@@ -9,6 +9,7 @@ import { ConfigModule } from '@nestjs/config';
 import { MenuModule } from './menu/menu.module';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { join } from 'path';
+import { TypeMenuModule } from './type_menu/type_menu.module';
 
 @Module({
   imports: [
@@ -31,6 +32,7 @@ import { join } from 'path';
     RoleModule,
     AuthModule,
     MenuModule,
+    TypeMenuModule,
   ],
   controllers: [AppController],
   providers: [AppService],

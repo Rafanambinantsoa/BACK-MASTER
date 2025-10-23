@@ -1,4 +1,5 @@
-import { Column, Entity, PrimaryGeneratedColumn } from "typeorm";
+import { TypeMenu } from "src/type_menu/entities/type_menu.entity";
+import { Column, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from "typeorm";
 
 @Entity()
 export class Menu {
@@ -16,5 +17,13 @@ export class Menu {
 
     @Column({ nullable: true })
     image: string
+
+    @Column({ nullable: true })
+    type_menu_id: number;
+
+    @ManyToOne(() => TypeMenu, (typeMenu) => typeMenu.menus, { eager: true })
+    @JoinColumn({ name: 'type_menu_id' })
+    type_menu: TypeMenu;
+
 }
 
