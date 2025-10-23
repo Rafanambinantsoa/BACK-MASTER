@@ -26,15 +26,21 @@ export class MenuService {
     }
     const data = this.menuRepo.create(createMenuDto);
     const menu = await this.menuRepo.save(data);
+
+    const menuRelation = await this.menuRepo.findOne({ where: { id: menu.id }, relations: ['type_menu'] });
+
+    if (menuRelation === null) {
+      throw new NotFoundException('Introuvable')
+    }
     //AJoute l;image url  COMPLTE
     const baseUrl = process.env.BASE_URL || 'http://localhost:3000/uploads/menu';
-    if (menu.image) {
-      menu['imageUrl'] = `${baseUrl}/${menu.image}`;
+    if (menuRelation.image) {
+      menuRelation['imageUrl'] = `${baseUrl}/${menuRelation.image}`;
     } else {
-      menu['imageUrl'] = null;
+      menuRelation['imageUrl'] = null;
     }
 
-    return menu;
+    return menuRelation;
   }
 
   async findAll() {
