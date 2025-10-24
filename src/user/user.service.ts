@@ -101,14 +101,14 @@ export class UserService {
       relations: ['userTypeMenus', 'userTypeMenus.typeMenu'],
     });
     if (!user) {
-      throw new NotFoundException("Utilisateur inexistant");
+      throw new NotFoundException('Utilisateur inexistant');
     }
 
-    // Vérifier si le role existe
+    // Vérifier si le rôle existe
     if (updateUserDto.role_id) {
       const role = await this.roleRepository.findOneBy({ id: updateUserDto.role_id });
       if (!role) {
-        throw new NotFoundException("Rôle inexistant");
+        throw new NotFoundException('Rôle inexistant');
       }
     }
 
@@ -118,49 +118,51 @@ export class UserService {
         where: { email: updateUserDto.email },
       });
       if (existingEmail && existingEmail.id !== id) {
-        throw new ForbiddenException("Email déjà utilisé par un autre utilisateur");
+        throw new ForbiddenException('Email déjà utilisé par un autre utilisateur');
       }
-    } updateUserDto
+    }
 
     // Exclure typeMenuIds avant la mise à jour principale
     const { typeMenuIds, ...userData } = updateUserDto;
+
     // Mettre à jour les infos principales de l'utilisateur
     await this.userRepository.update(id, userData);
 
     // Gestion des spécialités (typeMenuIds)
-    if (updateUserDto.typeMenuIds) {
-      // Supprimer les anciennes relations
+    if (typeMenuIds !== undefined) {
+      // Supprimer toutes les anciennes relations
       await this.userTypeMenuRepository.delete({ user: { id } });
 
-      // Créer les nouvelles relations si fournies
-      if (updateUserDto.typeMenuIds.length > 0) {
+      // Si le tableau contient des IDs, on recrée les nouvelles relations
+      if (typeMenuIds.length > 0) {
         const newUserTypeMenus: UserTypeMenu[] = [];
 
-        const promises = updateUserDto.typeMenuIds.map(async (typeMenuId) => {
+        for (const typeMenuId of typeMenuIds) {
           const typeMenu = await this.typeMenuRepository.findOneBy({ id: typeMenuId });
-          if (!typeMenu) return; // ignorer les ids invalides
+          if (!typeMenu) continue;
 
           const newRelation = this.userTypeMenuRepository.create({
             user: { id },
             typeMenu,
           });
-          newUserTypeMenus.push(newRelation);
-        });
 
-        await Promise.all(promises);
+          newUserTypeMenus.push(newRelation);
+        }
 
         if (newUserTypeMenus.length > 0) {
           await this.userTypeMenuRepository.save(newUserTypeMenus);
         }
       }
+      // Si le tableau est vide → toutes les anciennes relations sont déjà supprimées ci-dessus
     }
 
-    // Retourner l'utilisateur avec les relations mises à jour
+    // Retourner l'utilisateur mis à jour avec ses nouvelles relations
     return this.userRepository.findOne({
       where: { id },
       relations: ['userTypeMenus.typeMenu'],
     });
   }
+
 
   async remove(id: number) {
     const data = await this.userRepository.findOneBy({ id });
