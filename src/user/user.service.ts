@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { ForbiddenException, Injectable } from '@nestjs/common';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -6,6 +6,8 @@ import { User } from './entities/user.entity';
 import { Repository } from 'typeorm';
 import { NotFoundException } from '@nestjs/common';
 import { Role } from 'src/role/entities/role.entity';
+import { UserTypeMenu } from 'src/pivots/user-type-menu.entity';
+import { TypeMenu } from 'src/type_menu/entities/type_menu.entity';
 
 @Injectable()
 export class UserService {
@@ -14,29 +16,68 @@ export class UserService {
     private userRepository: Repository<User>,
 
     @InjectRepository(Role)
-    private roleRepository: Repository<Role>
+    private roleRepository: Repository<Role>,
+
+    @InjectRepository(UserTypeMenu)
+    private userTypeMenuRepository: Repository<UserTypeMenu>,
+
+    @InjectRepository(TypeMenu)
+    private typeMenuRepository: Repository<TypeMenu>
   ) { }
 
   async create(createUserDto: CreateUserDto) {
-    //Verifier si le role_id existe dans la table role
-    // if not throw new NotFoundException(`Role with id ${createUserDto.role_id} not found`);
-    // else create the user
+    // Vérifier si le role_id existe
     const role = await this.roleRepository.findOneBy({ id: createUserDto.role_id });
+    if (!role) {
+      throw new NotFoundException("Role inexistant");
+    }
 
-    // if (role === null) {
-    //   throw new NotFoundException("Role  inexistant")
-    // }
+    //Verification email doublon
+    const checkemail = await this.userRepository.findOneBy({ email: createUserDto.email });
+    if (checkemail) {
+      throw new ForbiddenException("Email deja existant")
+    };
 
+    // Créer l'utilisateur
     const user = this.userRepository.create(createUserDto);
-    return this.userRepository.save(user);
+    const savedUser = await this.userRepository.save(user);
+
+    // Assigner les spécialités (typeMenuIds)
+    if (createUserDto.typeMenuIds && createUserDto.typeMenuIds.length > 0) {
+      const userTypeMenus: UserTypeMenu[] = [];
+
+      // Utiliser forEach avec Promise.all
+      const promises = createUserDto.typeMenuIds.map(async (typeMenuId) => {
+        const typeMenu = await this.typeMenuRepository.findOneBy({ id: typeMenuId });
+        if (!typeMenu) return; // ignorer les ids invalides
+        const userTypeMenu = this.userTypeMenuRepository.create({
+          user: savedUser,
+          typeMenu: typeMenu,
+        });
+        userTypeMenus.push(userTypeMenu);
+      });
+
+      await Promise.all(promises);
+
+      if (userTypeMenus.length > 0) {
+        await this.userTypeMenuRepository.save(userTypeMenus);
+      }
+    }
+
+    // Retourner l'utilisateur avec ses spécialités
+    return this.userRepository.findOne({
+      where: { id: savedUser.id },
+      relations: ['userTypeMenus.typeMenu'],
+    });
   }
 
-  findAll() {
-    return this.userRepository.find();
+
+  async findAll() {
+    return await this.userRepository.find({ relations: ['userTypeMenus.typeMenu'] });
   }
 
   async findOne(id: number) {
-    const data = await this.userRepository.findOneBy({ id });
+    const data = await this.userRepository.findOne({ where: { id }, relations: ['userTypeMenus.typeMenu'] });
     // retourner une status code avec un message  404
     if (data === null) {
       // ✅ lance une exception 404
@@ -54,27 +95,71 @@ export class UserService {
   }
 
   async update(id: number, updateUserDto: UpdateUserDto) {
-    const data = await this.userRepository.findOne({
+    // Vérifier si l'utilisateur existe
+    const user = await this.userRepository.findOne({
       where: { id },
-      relations: ['role'], // utile si tu veux charger le rôle existant
+      relations: ['userTypeMenus', 'userTypeMenus.typeMenu'],
     });
-
-    if (!data) {
-      throw new NotFoundException(`User with id ${id} not found`);
+    if (!user) {
+      throw new NotFoundException("Utilisateur inexistant");
     }
 
+    // Vérifier si le role existe
     if (updateUserDto.role_id) {
-
       const role = await this.roleRepository.findOneBy({ id: updateUserDto.role_id });
-
-      if (role === null) {
-        throw new NotFoundException("Role  inexistant")
+      if (!role) {
+        throw new NotFoundException("Rôle inexistant");
       }
-      data.role = role;
     }
 
-    this.userRepository.merge(data, { ...updateUserDto, role_id: undefined });
-    return this.userRepository.save(data);
+    // Vérifier si l'email n'est pas déjà pris par un autre utilisateur
+    if (updateUserDto.email) {
+      const existingEmail = await this.userRepository.findOne({
+        where: { email: updateUserDto.email },
+      });
+      if (existingEmail && existingEmail.id !== id) {
+        throw new ForbiddenException("Email déjà utilisé par un autre utilisateur");
+      }
+    } updateUserDto
+
+    // Exclure typeMenuIds avant la mise à jour principale
+    const { typeMenuIds, ...userData } = updateUserDto;
+    // Mettre à jour les infos principales de l'utilisateur
+    await this.userRepository.update(id, userData);
+
+    // Gestion des spécialités (typeMenuIds)
+    if (updateUserDto.typeMenuIds) {
+      // Supprimer les anciennes relations
+      await this.userTypeMenuRepository.delete({ user: { id } });
+
+      // Créer les nouvelles relations si fournies
+      if (updateUserDto.typeMenuIds.length > 0) {
+        const newUserTypeMenus: UserTypeMenu[] = [];
+
+        const promises = updateUserDto.typeMenuIds.map(async (typeMenuId) => {
+          const typeMenu = await this.typeMenuRepository.findOneBy({ id: typeMenuId });
+          if (!typeMenu) return; // ignorer les ids invalides
+
+          const newRelation = this.userTypeMenuRepository.create({
+            user: { id },
+            typeMenu,
+          });
+          newUserTypeMenus.push(newRelation);
+        });
+
+        await Promise.all(promises);
+
+        if (newUserTypeMenus.length > 0) {
+          await this.userTypeMenuRepository.save(newUserTypeMenus);
+        }
+      }
+    }
+
+    // Retourner l'utilisateur avec les relations mises à jour
+    return this.userRepository.findOne({
+      where: { id },
+      relations: ['userTypeMenus.typeMenu'],
+    });
   }
 
   async remove(id: number) {

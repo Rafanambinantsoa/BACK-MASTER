@@ -1,3 +1,4 @@
+import { UserTypeMenu } from "src/pivots/user-type-menu.entity";
 import { Role } from "src/role/entities/role.entity";
 import { Column, Entity, JoinColumn, ManyToOne, OneToMany, PrimaryGeneratedColumn } from "typeorm";
 
@@ -25,6 +26,9 @@ export class User {
     @ManyToOne(() => Role, (role) => role.users, { eager: true })
     @JoinColumn({ name: 'role_id' }) // précise la colonne FK
     role: Role;
+
+    @OneToMany(() => UserTypeMenu, (userTypeMenu) => userTypeMenu.user, { eager: true })
+    userTypeMenus: UserTypeMenu[];
 
 
 

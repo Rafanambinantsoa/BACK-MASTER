@@ -10,6 +10,7 @@ import { MenuModule } from './menu/menu.module';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { join } from 'path';
 import { TypeMenuModule } from './type_menu/type_menu.module';
+import { UserTypeMenuModule } from './pivots/user-type-menu.module';
 
 @Module({
   imports: [
@@ -33,6 +34,7 @@ import { TypeMenuModule } from './type_menu/type_menu.module';
     AuthModule,
     MenuModule,
     TypeMenuModule,
+    UserTypeMenuModule
   ],
   controllers: [AppController],
   providers: [AppService],

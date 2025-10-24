@@ -33,7 +33,10 @@ export class AuthService {
             ...createUserDto,
             password: hashedPassword,
         });
+        if (!user) {
+            throw new UnauthorizedException('Failed to create user');
+        }
         const { password, ...result } = user;
-        return user;
+        return result;
     }
 }

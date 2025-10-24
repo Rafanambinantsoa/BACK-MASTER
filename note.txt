@@ -18,3 +18,5 @@ NestJS suit une architecture modulaire orientée services, et supporte très bie
 eager = affiche automaotiquement les relations
 
 860956040866552
+
+Logs Activity
