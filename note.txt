@@ -35,3 +35,6 @@ Logs Activity
 - Une fois tout les menus sur une commande  prets bah  le Serveur sera notifier via son telephone 
 - Une fois servis on change la statut de la commande  
 
+
+
++- Component date ,  DECONNEXION ,  NAV BAR COULEUR COMPACT  ,

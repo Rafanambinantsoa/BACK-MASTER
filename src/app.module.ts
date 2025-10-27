@@ -12,6 +12,7 @@ import { join } from 'path';
 import { TypeMenuModule } from './type_menu/type_menu.module';
 import { UserTypeMenuModule } from './pivots/user-type-menu.module';
 import { TableModule } from './table/table.module';
+import { ClientModule } from './client/client.module';
 
 @Module({
   imports: [
@@ -36,7 +37,8 @@ import { TableModule } from './table/table.module';
     MenuModule,
     TypeMenuModule,
     UserTypeMenuModule,
-    TableModule
+    TableModule,
+    ClientModule
   ],
   controllers: [AppController],
   providers: [AppService],
