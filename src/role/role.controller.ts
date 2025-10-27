@@ -15,6 +15,7 @@ export class RoleController {
   }
 
 
+  @UseGuards(JwtAuthGuard)
   @Get()
   findAll() {
     return this.roleService.findAll();

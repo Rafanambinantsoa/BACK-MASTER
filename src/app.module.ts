@@ -11,6 +11,7 @@ import { ServeStaticModule } from '@nestjs/serve-static';
 import { join } from 'path';
 import { TypeMenuModule } from './type_menu/type_menu.module';
 import { UserTypeMenuModule } from './pivots/user-type-menu.module';
+import { TableModule } from './table/table.module';
 
 @Module({
   imports: [
@@ -34,7 +35,8 @@ import { UserTypeMenuModule } from './pivots/user-type-menu.module';
     AuthModule,
     MenuModule,
     TypeMenuModule,
-    UserTypeMenuModule
+    UserTypeMenuModule,
+    TableModule
   ],
   controllers: [AppController],
   providers: [AppService],

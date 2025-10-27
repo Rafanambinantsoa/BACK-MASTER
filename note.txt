@@ -20,3 +20,18 @@ eager = affiche automaotiquement les relations
 860956040866552
 
 Logs Activity
+
+//////////////////////////////////
+
+-CRUD TABLE 
+-RESERVATION TABLE ( Caissiers  ) 
+
+- Prends la commande par table    ( Serveur )
+- Peut modifier une commande si jamais le menus selctionner par le client n'est plus disponible  ( Serveur  )
+
+- Prends selectionner une partie du menus selon sa specialite et met a  jour  en consequence son statut 
+
+
+- Une fois tout les menus sur une commande  prets bah  le Serveur sera notifier via son telephone 
+- Une fois servis on change la statut de la commande  
+
