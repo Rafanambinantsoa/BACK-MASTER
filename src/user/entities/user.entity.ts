@@ -1,4 +1,4 @@
-import { UserTypeMenu } from "src/pivots/user-type-menu.entity";
+import { UserTypeMenu } from "src/userTypeMenu/user-type-menu.entity";
 import { Role } from "src/role/entities/role.entity";
 import { Column, Entity, JoinColumn, ManyToOne, OneToMany, PrimaryGeneratedColumn } from "typeorm";
 

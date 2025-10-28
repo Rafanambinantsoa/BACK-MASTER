@@ -1,4 +1,3 @@
-import { truncate } from "node:fs";
 import { TypeMenu } from "src/type_menu/entities/type_menu.entity";
 import { User } from "src/user/entities/user.entity";
 import { Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from "typeorm";

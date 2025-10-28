@@ -10,9 +10,11 @@ import { MenuModule } from './menu/menu.module';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { join } from 'path';
 import { TypeMenuModule } from './type_menu/type_menu.module';
-import { UserTypeMenuModule } from './pivots/user-type-menu.module';
+import { UserTypeMenuModule } from './userTypeMenu/user-type-menu.module';
 import { TableModule } from './table/table.module';
 import { ClientModule } from './client/client.module';
+import { ReservationModule } from './reservation/reservation.module';
+import { ReservationTableModule } from './reservation-table/reservation-table.module';
 
 @Module({
   imports: [
@@ -38,7 +40,9 @@ import { ClientModule } from './client/client.module';
     TypeMenuModule,
     UserTypeMenuModule,
     TableModule,
-    ClientModule
+    ClientModule,
+    ReservationModule,
+    ReservationTableModule,
   ],
   controllers: [AppController],
   providers: [AppService],

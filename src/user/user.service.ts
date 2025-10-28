@@ -6,7 +6,7 @@ import { User } from './entities/user.entity';
 import { Repository } from 'typeorm';
 import { NotFoundException } from '@nestjs/common';
 import { Role } from 'src/role/entities/role.entity';
-import { UserTypeMenu } from 'src/pivots/user-type-menu.entity';
+import { UserTypeMenu } from 'src/userTypeMenu/user-type-menu.entity';
 import { TypeMenu } from 'src/type_menu/entities/type_menu.entity';
 
 @Injectable()
