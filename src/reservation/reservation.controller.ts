@@ -39,6 +39,7 @@ export class ReservationController {
     return this.reservationService.remove(+id);
   }
 
+  @UseGuards(JwtAuthGuard)
   @Post('tables-disponibles')
   async findTablesDisponibles(@Body() dispoDto: DispoDto) {
     return await this.reservationService.findTablesDisponibles(dispoDto);
