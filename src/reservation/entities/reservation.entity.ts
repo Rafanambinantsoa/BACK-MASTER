@@ -22,7 +22,7 @@ export class Reservation {
     @Column({ default: "en_attente" })
     status: string
 
-    @ManyToOne(() => Client, (client) => client.reservations)
+    @ManyToOne(() => Client, (client) => client.reservations, { onDelete: 'CASCADE' })
     @JoinColumn({ name: 'client_id' })
     client: Client;
 

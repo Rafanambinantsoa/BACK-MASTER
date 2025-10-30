@@ -7,11 +7,11 @@ export class ReservationTable {
     @PrimaryGeneratedColumn()
     id: number;
 
-    @ManyToOne(() => Table, (table) => table.reservationTables)
-    @JoinColumn({ name: 'clientId' })
+    @ManyToOne(() => Table, (table) => table.reservationTables, { onDelete: 'CASCADE' })
+    @JoinColumn({ name: 'tableId' })
     table: Table
 
-    @ManyToOne(() => Reservation, (reservation) => reservation.reservationTables)
+    @ManyToOne(() => Reservation, (reservation) => reservation.reservationTables, { onDelete: 'CASCADE' })
     @JoinColumn({ name: 'reservationId' })
     reservation: Reservation;
 
