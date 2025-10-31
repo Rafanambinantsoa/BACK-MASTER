@@ -7,4 +7,6 @@ export class UpdateReservationDto extends PartialType(CreateReservationDto) {
     heure_debut: string;
 
     heure_fin: string;
+
+    type_reservation: string;
 }

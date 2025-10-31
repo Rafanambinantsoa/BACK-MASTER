@@ -1,4 +1,4 @@
-import { IsArray, IsNotEmpty } from "class-validator";
+import { IsArray, IsNotEmpty, IsOptional } from "class-validator";
 
 export class CreateReservationDto {
     @IsNotEmpty()
@@ -16,7 +16,14 @@ export class CreateReservationDto {
     @IsNotEmpty()
     status: string;
 
+    @IsNotEmpty()
+    type_reservation: string;
+
     @IsArray()
     tableIds: number[];
+
+    @IsOptional()
+    @IsArray()
+    menuIds: number[];
 
 }

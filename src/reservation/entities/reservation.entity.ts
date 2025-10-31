@@ -1,4 +1,5 @@
 import { Client } from "src/client/entities/client.entity";
+import { ReservationMenu } from "src/reservation-menu/entities/reservation-menu.entity";
 import { ReservationTable } from "src/reservation-table/entities/reservation-table.entity";
 import { Column, Entity, JoinColumn, ManyToOne, OneToMany, PrimaryGeneratedColumn } from "typeorm";
 
@@ -22,10 +23,16 @@ export class Reservation {
     @Column({ default: "en_attente" })
     status: string
 
+    @Column({ default: "standard" })
+    type_reservation: string;
+
     @ManyToOne(() => Client, (client) => client.reservations, { onDelete: 'CASCADE' })
     @JoinColumn({ name: 'client_id' })
     client: Client;
 
     @OneToMany(() => ReservationTable, (reservationTable) => reservationTable.reservation, { eager: true })
     reservationTables: ReservationTable[];
+
+    @OneToMany(() => ReservationMenu, (reservationMenu) => reservationMenu.reservation, { eager: true })
+    reservationMenus: ReservationMenu[];
 }

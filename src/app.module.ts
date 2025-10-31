@@ -15,6 +15,7 @@ import { TableModule } from './table/table.module';
 import { ClientModule } from './client/client.module';
 import { ReservationModule } from './reservation/reservation.module';
 import { ReservationTableModule } from './reservation-table/reservation-table.module';
+import { ReservationMenuModule } from './reservation-menu/reservation-menu.module';
 
 @Module({
   imports: [
@@ -43,6 +44,7 @@ import { ReservationTableModule } from './reservation-table/reservation-table.mo
     ClientModule,
     ReservationModule,
     ReservationTableModule,
+    ReservationMenuModule,
   ],
   controllers: [AppController],
   providers: [AppService],

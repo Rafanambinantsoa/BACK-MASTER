@@ -1,5 +1,6 @@
+import { ReservationMenu } from "src/reservation-menu/entities/reservation-menu.entity";
 import { TypeMenu } from "src/type_menu/entities/type_menu.entity";
-import { Column, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from "typeorm";
+import { Column, Entity, JoinColumn, ManyToOne, OneToMany, PrimaryGeneratedColumn } from "typeorm";
 
 @Entity()
 export class Menu {
@@ -24,6 +25,9 @@ export class Menu {
     @ManyToOne(() => TypeMenu, (typeMenu) => typeMenu.menus, { eager: true })
     @JoinColumn({ name: 'type_menu_id' })
     type_menu: TypeMenu;
+
+    @OneToMany(() => ReservationMenu, (reservationMenu) => reservationMenu.menu, { eager: true })
+    reservationMenus: ReservationMenu[];
 
 }
 
