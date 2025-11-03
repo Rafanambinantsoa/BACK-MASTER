@@ -1,7 +1,8 @@
 import { Client } from "src/client/entities/client.entity";
+import { PaimentReservationTable } from "src/paiment-reservation-table/entities/paiment-reservation-table.entity";
 import { ReservationMenu } from "src/reservation-menu/entities/reservation-menu.entity";
 import { ReservationTable } from "src/reservation-table/entities/reservation-table.entity";
-import { Column, Entity, JoinColumn, ManyToOne, OneToMany, PrimaryGeneratedColumn } from "typeorm";
+import { Column, Entity, JoinColumn, ManyToOne, OneToMany, OneToOne, PrimaryGeneratedColumn } from "typeorm";
 
 @Entity()
 export class Reservation {
@@ -35,4 +36,7 @@ export class Reservation {
 
     @OneToMany(() => ReservationMenu, (reservationMenu) => reservationMenu.reservation, { eager: true })
     reservationMenus: ReservationMenu[];
+
+    @OneToOne(() => PaimentReservationTable, (paimentReservationTable) => paimentReservationTable.reservation)
+    paimentReservationTable: PaimentReservationTable;
 }

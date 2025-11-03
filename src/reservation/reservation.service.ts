@@ -10,6 +10,7 @@ import { Client } from 'src/client/entities/client.entity';
 import { DispoDto } from './dto/dispo.dto';
 import { Menu } from 'src/menu/entities/menu.entity';
 import { ReservationMenu } from 'src/reservation-menu/entities/reservation-menu.entity';
+import { PaimentReservationTable } from 'src/paiment-reservation-table/entities/paiment-reservation-table.entity';
 
 @Injectable()
 export class ReservationService {
@@ -26,10 +27,23 @@ export class ReservationService {
     private menuRepository: Repository<Menu>,
     @InjectRepository(ReservationMenu)
     private reservationMenuRepository: Repository<ReservationMenu>,
+    @InjectRepository(PaimentReservationTable)
+    private paimentReservationTableRepository: Repository<PaimentReservationTable>
   ) { }
 
   async create(dto: CreateReservationDto) {
-    const { tableIds, menuIds, date, heure_debut, heure_fin, type_reservation, ...data } = dto;
+    const {
+      tableIds,
+      menuIds,
+      date,
+      heure_debut,
+      heure_fin,
+      type_reservation,
+      type_paiment,
+      reference,
+      montant,
+      ...data
+    } = dto;
 
     // Vérification client
     const client = await this.clientRepository.findOneBy({ id: dto.client_id });
@@ -79,13 +93,39 @@ export class ReservationService {
     );
     await this.reservationTableRepository.save(reservationTables);
 
-    // Association menus (si applicable)
+    // Association menus
     if (type_reservation && type_reservation !== 'standard' && menuIds?.length) {
       const menus = await this.menuRepository.findBy({ id: In(menuIds) });
       const reservationMenus = menus.map((menu) =>
         this.reservationMenuRepository.create({ menu, reservation: saved }),
       );
       await this.reservationMenuRepository.save(reservationMenus);
+    }
+
+    // Gestion du paiement
+    if (type_reservation && type_reservation !== 'standard' && type_paiment) {
+      // Validation selon le type de paiement
+      if (type_paiment === 'mobile_money') {
+        if (!reference)
+          throw new BadRequestException('Une référence est requise pour un paiement mobile money.');
+      }
+
+      if (type_paiment === 'stripe') {
+        // On ne crée pas de paiement pour Stripe (sera géré plus tard)
+      } else {
+        // Pour mobile_money et espece
+        if (montant == null || isNaN(montant))
+          throw new BadRequestException('Le montant du paiement est requis et doit être un nombre.');
+
+        const paiement = this.paimentReservationTableRepository.create({
+          reservation: saved,
+          type_paiment,
+          reference: type_paiment === 'mobile_money' ? reference : undefined,
+          montant,
+        });
+
+        await this.paimentReservationTableRepository.save(paiement);
+      }
     }
 
     return await this.reservationRepository.findOne({
@@ -96,9 +136,11 @@ export class ReservationService {
         'reservationTables.table',
         'reservationMenus',
         'reservationMenus.menu',
+        'paimentReservationTable',
       ],
     });
   }
+
 
   async findAll() {
     return await this.reservationRepository.find({
@@ -108,6 +150,7 @@ export class ReservationService {
         'reservationTables.table',
         'reservationMenus',
         'reservationMenus.menu',
+        'paimentReservationTable',
       ],
     });
   }
@@ -121,6 +164,7 @@ export class ReservationService {
         'reservationTables.table',
         'reservationMenus',
         'reservationMenus.menu',
+        'paimentReservationTable',
       ],
     });
     if (!reservation) throw new NotFoundException('Réservation introuvable');
@@ -128,11 +172,26 @@ export class ReservationService {
   }
 
   async update(id: number, dto: UpdateReservationDto) {
-    const { tableIds, menuIds, date, heure_debut, heure_fin, type_reservation, ...data } = dto;
+    const {
+      tableIds,
+      menuIds,
+      date,
+      heure_debut,
+      heure_fin,
+      type_reservation,
+      type_paiment,
+      reference,
+      montant,
+      ...data
+    } = dto;
 
     const existing = await this.reservationRepository.findOne({
       where: { id },
-      relations: ['reservationTables', 'reservationMenus'],
+      relations: [
+        'reservationTables',
+        'reservationMenus',
+        'paimentReservationTable',
+      ],
     });
     if (!existing)
       throw new NotFoundException(`Réservation ${id} introuvable`);
@@ -150,7 +209,13 @@ export class ReservationService {
       if (!tableExists)
         throw new NotFoundException(`Table ${tableId} introuvable`);
 
-      const dispo = await this.verifierDisponibiliteTable(tableId, date, heure_debut, heure_fin, id);
+      const dispo = await this.verifierDisponibiliteTable(
+        tableId,
+        date,
+        heure_debut,
+        heure_fin,
+        id,
+      );
       if (!dispo.disponible)
         throw new BadRequestException(`Table ${tableId} déjà réservée sur cette période`);
     }
@@ -180,7 +245,6 @@ export class ReservationService {
     // Mise à jour des tables
     await this.reservationTableRepository.delete({ reservation: { id } });
     const tables = await this.tableRepository.findBy({ id: In(tableIds) });
-    // reuse the already-validated 'existing' reservation to avoid a nullable result
     const reservation = existing;
     const reservationTables = tables.map((table) =>
       this.reservationTableRepository.create({ table, reservation }),
@@ -197,6 +261,46 @@ export class ReservationService {
       await this.reservationMenuRepository.save(reservationMenus);
     }
 
+    // Gestion du paiement
+    if (type_reservation && type_reservation !== 'standard' && type_paiment) {
+      // Validation selon le type de paiement
+      if (type_paiment === 'mobile_money') {
+        if (!reference)
+          throw new BadRequestException('Une référence est requise pour un paiement mobile money.');
+      }
+
+      if (type_paiment === 'stripe') {
+        // Aucun paiement enregistré ici
+      } else {
+        if (montant == null || isNaN(montant))
+          throw new BadRequestException('Le montant du paiement est requis et doit être un nombre.');
+
+        // Vérifie si un paiement existe déjà
+        const existingPayment = await this.paimentReservationTableRepository.findOne({
+          where: { reservation: { id } },
+        });
+
+        if (existingPayment) {
+          await this.paimentReservationTableRepository.update(existingPayment.id, {
+            type_paiment,
+            reference: type_paiment === 'mobile_money' ? reference : undefined,
+            montant,
+          });
+        } else {
+          const newPayment = this.paimentReservationTableRepository.create({
+            reservation,
+            type_paiment,
+            reference: type_paiment === 'mobile_money' ? reference : undefined,
+            montant,
+          });
+          await this.paimentReservationTableRepository.save(newPayment);
+        }
+      }
+    } else {
+      // Si la réservation devient standard, on supprime le paiement
+      await this.paimentReservationTableRepository.delete({ reservation: { id } });
+    }
+
     return await this.reservationRepository.findOne({
       where: { id },
       relations: [
@@ -205,9 +309,11 @@ export class ReservationService {
         'reservationTables.table',
         'reservationMenus',
         'reservationMenus.menu',
+        'paimentReservationTable',
       ],
     });
   }
+
 
   async remove(id: number) {
     const reservation = await this.reservationRepository.findOneBy({ id });

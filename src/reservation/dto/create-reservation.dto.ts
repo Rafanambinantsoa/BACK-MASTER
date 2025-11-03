@@ -26,4 +26,13 @@ export class CreateReservationDto {
     @IsArray()
     menuIds: number[];
 
+    @IsOptional()
+    montant: number;
+
+    @IsOptional()
+    reference: string;
+
+    @IsOptional()
+    type_paiment: string;
+
 }
