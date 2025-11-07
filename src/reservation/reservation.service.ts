@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, In } from 'typeorm';
+import { Repository, In, DataSource } from 'typeorm';
 import { Reservation } from './entities/reservation.entity';
 import { Table } from 'src/table/entities/table.entity';
 import { CreateReservationDto } from './dto/create-reservation.dto';
@@ -15,6 +15,8 @@ import { PaimentReservationTable } from 'src/paiment-reservation-table/entities/
 @Injectable()
 export class ReservationService {
   constructor(
+    private dataSource: DataSource,
+
     @InjectRepository(Reservation)
     private reservationRepository: Repository<Reservation>,
     @InjectRepository(ReservationTable)
@@ -32,264 +34,269 @@ export class ReservationService {
   ) { }
 
   async create(dto: CreateReservationDto) {
-    const {
-      tableIds,
-      menuIds,
-      menuQuantities,
-      date,
-      heure_debut,
-      heure_fin,
-      type_reservation,
-      type_paiment,
-      reference,
-      montant,
-      client_email,
-      client_nom,
-      client_telephone,
-      client_adresse,
-      ...data
-    } = dto;
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
 
-    // Vérification client
-    if (!client_email) throw new BadRequestException('Email client requis');
+    try {
+      const {
+        tableIds,
+        menuIds,
+        menuQuantities,
+        date,
+        heure_debut,
+        heure_fin,
+        type_reservation,
+        type_paiment,
+        reference,
+        montant,
+        client_email,
+        client_nom,
+        client_telephone,
+        client_adresse,
+        ...data
+      } = dto;
 
-    let client = await this.clientRepository.findOne({ where: { email: client_email } });
-    if (client) {
-      client.nom = client_nom || client.nom;
-      client.telephone = client_telephone || client.telephone;
-      client.adresse = client_adresse || client.adresse;
-      await this.clientRepository.save(client);
-    } else {
-      client = this.clientRepository.create({
-        nom: client_nom,
-        email: client_email,
-        telephone: client_telephone,
-        adresse: client_adresse,
-      });
-      await this.clientRepository.save(client);
-    }
+      if (!client_email) throw new BadRequestException('Email client requis');
 
-    // Vérification tables
-    if (!tableIds || tableIds.length === 0)
-      throw new BadRequestException('Au moins une table doit être spécifiée');
-
-    for (const tableId of tableIds) {
-      const tableExists = await this.tableRepository.findOneBy({ id: tableId });
-      if (!tableExists) throw new NotFoundException(`Table ${tableId} introuvable`);
-
-      const dispo = await this.verifierDisponibiliteTable(tableId, date, heure_debut, heure_fin);
-      if (!dispo.disponible)
-        throw new BadRequestException(`Table ${tableId} déjà réservée sur cette période`);
-    }
-
-    // Vérification menus + quantités
-    if (type_reservation && type_reservation !== 'standard') {
-      if (!menuIds?.length)
-        throw new BadRequestException('Menus requis pour ce type de réservation');
-
-      if (!menuQuantities || menuQuantities.length !== menuIds.length)
-        throw new BadRequestException('Les quantités doivent correspondre aux menus.');
-
-      for (const menuId of menuIds) {
-        const menuExists = await this.menuRepository.findOneBy({ id: menuId });
-        if (!menuExists) throw new NotFoundException(`Menu ${menuId} introuvable`);
-      }
-    }
-
-    // Création réservation
-    const reservation = this.reservationRepository.create({
-      ...data,
-      client,
-      date,
-      heure_debut,
-      heure_fin,
-      type_reservation,
-    });
-    const saved = await this.reservationRepository.save(reservation);
-
-    // Association tables
-    const tables = await this.tableRepository.findBy({ id: In(tableIds) });
-    const reservationTables = tables.map((table) =>
-      this.reservationTableRepository.create({ table, reservation: saved }),
-    );
-    await this.reservationTableRepository.save(reservationTables);
-
-    // Association menus avec quantités
-    if (type_reservation && type_reservation !== 'standard' && menuIds?.length) {
-      const menus = await this.menuRepository.findBy({ id: In(menuIds) });
-      const reservationMenus = menus.map((menu, index) =>
-        this.reservationMenuRepository.create({
-          menu,
-          reservation: saved,
-          quantity: menuQuantities[index],
-        }),
-      );
-      await this.reservationMenuRepository.save(reservationMenus);
-    }
-
-    // Paiement
-    if (type_reservation !== 'standard' && type_paiment) {
-      if (type_paiment === 'mobile_money' && !reference)
-        throw new BadRequestException('Référence requise pour mobile money.');
-      if (type_paiment !== 'stripe') {
-        if (montant == null || isNaN(montant))
-          throw new BadRequestException('Montant invalide ou manquant.');
-
-        const paiement = this.paimentReservationTableRepository.create({
-          reservation: saved,
-          type_paiment,
-          reference: type_paiment === 'mobile_money' ? reference : undefined,
-          montant,
+      let client = await queryRunner.manager.findOne(Client, { where: { email: client_email } });
+      if (client) {
+        client.nom = client_nom || client.nom;
+        client.telephone = client_telephone || client.telephone;
+        client.adresse = client_adresse || client.adresse;
+        await queryRunner.manager.save(Client, client);
+      } else {
+        client = queryRunner.manager.create(Client, {
+          nom: client_nom,
+          email: client_email,
+          telephone: client_telephone,
+          adresse: client_adresse,
         });
-        await this.paimentReservationTableRepository.save(paiement);
+        await queryRunner.manager.save(Client, client);
       }
-    }
 
-    return this.reservationRepository.findOne({
-      where: { id: saved.id },
-      relations: [
-        'client',
-        'reservationTables.table',
-        'reservationMenus.menu',
-        'paimentReservationTable',
-      ],
-    });
+      if (!tableIds?.length)
+        throw new BadRequestException('Au moins une table doit être spécifiée');
+
+      for (const tableId of tableIds) {
+        const tableExists = await queryRunner.manager.findOneBy(Table, { id: tableId });
+        if (!tableExists) throw new NotFoundException(`Table ${tableId} introuvable`);
+
+        const dispo = await this.verifierDisponibiliteTable(tableId, date, heure_debut, heure_fin);
+        if (!dispo.disponible)
+          throw new BadRequestException(`Table ${tableId} déjà réservée sur cette période`);
+      }
+
+      if (type_reservation && type_reservation !== 'standard') {
+        if (!menuIds?.length)
+          throw new BadRequestException('Menus requis pour ce type de réservation');
+        if (!menuQuantities || menuQuantities.length !== menuIds.length)
+          throw new BadRequestException('Les quantités doivent correspondre aux menus.');
+      }
+
+      const reservation = queryRunner.manager.create(Reservation, {
+        ...data,
+        client,
+        date,
+        heure_debut,
+        heure_fin,
+        type_reservation,
+      });
+      const saved = await queryRunner.manager.save(Reservation, reservation);
+
+      const tables = await queryRunner.manager.findBy(Table, { id: In(tableIds) });
+      const reservationTables = tables.map((table) =>
+        queryRunner.manager.create(ReservationTable, { table, reservation: saved }),
+      );
+      await queryRunner.manager.save(ReservationTable, reservationTables);
+
+      if (type_reservation && type_reservation !== 'standard' && menuIds?.length) {
+        const menus = await queryRunner.manager.findBy(Menu, { id: In(menuIds) });
+        const reservationMenus = menus.map((menu, index) =>
+          queryRunner.manager.create(ReservationMenu, {
+            menu,
+            reservation: saved,
+            quantity: menuQuantities[index],
+          }),
+        );
+        await queryRunner.manager.save(ReservationMenu, reservationMenus);
+      }
+
+      if (type_reservation !== 'standard' && type_paiment) {
+        if (type_paiment === 'mobile_money' && !reference)
+          throw new BadRequestException('Référence requise pour mobile money.');
+        if (type_paiment !== 'stripe') {
+          if (montant == null || isNaN(montant))
+            throw new BadRequestException('Montant invalide ou manquant.');
+
+          const paiement = queryRunner.manager.create(PaimentReservationTable, {
+            reservation: saved,
+            type_paiment,
+            reference: type_paiment === 'mobile_money' ? reference : undefined,
+            montant,
+          });
+          await queryRunner.manager.save(PaimentReservationTable, paiement);
+        }
+      }
+
+      await queryRunner.commitTransaction();
+
+      return this.reservationRepository.findOne({
+        where: { id: saved.id },
+        relations: [
+          'client',
+          'reservationTables.table',
+          'reservationMenus.menu',
+          'paimentReservationTable',
+        ],
+      });
+    } catch (error) {
+      await queryRunner.rollbackTransaction();
+      throw error;
+    } finally {
+      await queryRunner.release();
+    }
   }
 
   async update(id: number, dto: UpdateReservationDto) {
-    const {
-      tableIds,
-      menuIds,
-      menuQuantities,
-      date,
-      heure_debut,
-      heure_fin,
-      type_reservation,
-      type_paiment,
-      reference,
-      montant,
-      client_email,
-      client_nom,
-      client_telephone,
-      client_adresse,
-      ...data
-    } = dto;
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
 
-    const existing = await this.reservationRepository.findOne({
-      where: { id },
-      relations: ['reservationTables', 'reservationMenus', 'paimentReservationTable'],
-    });
-    if (!existing) throw new NotFoundException(`Réservation ${id} introuvable`);
+    try {
+      const {
+        tableIds,
+        menuIds,
+        menuQuantities,
+        date,
+        heure_debut,
+        heure_fin,
+        type_reservation,
+        type_paiment,
+        reference,
+        montant,
+        client_email,
+        client_nom,
+        client_telephone,
+        client_adresse,
+        ...data
+      } = dto;
 
-    // Client
-    if (!client_email) throw new BadRequestException('Email client requis');
-    let client = await this.clientRepository.findOne({ where: { email: client_email } });
-    if (client) {
-      client.nom = client_nom || client.nom;
-      client.telephone = client_telephone || client.telephone;
-      client.adresse = client_adresse || client.adresse;
-      await this.clientRepository.save(client);
-    } else {
-      client = this.clientRepository.create({
-        nom: client_nom,
-        email: client_email,
-        telephone: client_telephone,
-        adresse: client_adresse,
+      const existing = await queryRunner.manager.findOne(Reservation, {
+        where: { id },
+        relations: ['reservationTables', 'reservationMenus', 'paimentReservationTable'],
       });
-      await this.clientRepository.save(client);
-    }
+      if (!existing) throw new NotFoundException(`Réservation ${id} introuvable`);
 
-    // Vérif tables
-    if (!tableIds || tableIds.length === 0)
-      throw new BadRequestException('Au moins une table doit être spécifiée');
-
-    for (const tableId of tableIds) {
-      const tableExists = await this.tableRepository.findOneBy({ id: tableId });
-      if (!tableExists) throw new NotFoundException(`Table ${tableId} introuvable`);
-    }
-
-    // Vérif menus
-    if (type_reservation && type_reservation !== 'standard') {
-      if (!menuIds?.length)
-        throw new BadRequestException('Menus requis pour ce type de réservation');
-      if (!menuQuantities || menuQuantities.length !== menuIds.length)
-        throw new BadRequestException('Les quantités doivent correspondre aux menus.');
-    }
-
-    // Update réservation
-    await this.reservationRepository.update(id, {
-      ...data,
-      date,
-      heure_debut,
-      heure_fin,
-      client,
-      type_reservation,
-    });
-
-    // Update tables
-    await this.reservationTableRepository.delete({ reservation: { id } });
-    const tables = await this.tableRepository.findBy({ id: In(tableIds) });
-    const reservation = existing;
-    const reservationTables = tables.map((table) =>
-      this.reservationTableRepository.create({ table, reservation }),
-    );
-    await this.reservationTableRepository.save(reservationTables);
-
-    // Update menus + quantités
-    await this.reservationMenuRepository.delete({ reservation: { id } });
-    if (type_reservation && type_reservation !== 'standard' && menuIds?.length) {
-      const menus = await this.menuRepository.findBy({ id: In(menuIds) });
-      const reservationMenus = menus.map((menu, index) =>
-        this.reservationMenuRepository.create({
-          menu,
-          reservation,
-          quantity: menuQuantities[index],
-        }),
-      );
-      await this.reservationMenuRepository.save(reservationMenus);
-    }
-
-    // Update paiement
-    if (type_reservation !== 'standard' && type_paiment) {
-      if (type_paiment === 'mobile_money' && !reference)
-        throw new BadRequestException('Référence requise pour mobile money.');
-      if (type_paiment !== 'stripe') {
-        if (montant == null || isNaN(montant))
-          throw new BadRequestException('Montant invalide ou manquant.');
-
-        const existingPayment = await this.paimentReservationTableRepository.findOne({
-          where: { reservation: { id } },
+      if (!client_email) throw new BadRequestException('Email client requis');
+      let client = await queryRunner.manager.findOne(Client, { where: { email: client_email } });
+      if (client) {
+        client.nom = client_nom || client.nom;
+        client.telephone = client_telephone || client.telephone;
+        client.adresse = client_adresse || client.adresse;
+        await queryRunner.manager.save(Client, client);
+      } else {
+        client = queryRunner.manager.create(Client, {
+          nom: client_nom,
+          email: client_email,
+          telephone: client_telephone,
+          adresse: client_adresse,
         });
-
-        if (existingPayment) {
-          await this.paimentReservationTableRepository.update(existingPayment.id, {
-            type_paiment,
-            reference: type_paiment === 'mobile_money' ? reference : undefined,
-            montant,
-          });
-        } else {
-          const newPayment = this.paimentReservationTableRepository.create({
-            reservation,
-            type_paiment,
-            reference: type_paiment === 'mobile_money' ? reference : undefined,
-            montant,
-          });
-          await this.paimentReservationTableRepository.save(newPayment);
-        }
+        await queryRunner.manager.save(Client, client);
       }
-    } else {
-      await this.paimentReservationTableRepository.delete({ reservation: { id } });
-    }
 
-    return this.reservationRepository.findOne({
-      where: { id },
-      relations: [
-        'client',
-        'reservationTables.table',
-        'reservationMenus.menu',
-        'paimentReservationTable',
-      ],
-    });
+      if (!tableIds?.length)
+        throw new BadRequestException('Au moins une table doit être spécifiée');
+
+      for (const tableId of tableIds) {
+        const tableExists = await queryRunner.manager.findOneBy(Table, { id: tableId });
+        if (!tableExists) throw new NotFoundException(`Table ${tableId} introuvable`);
+      }
+
+      if (type_reservation && type_reservation !== 'standard') {
+        if (!menuIds?.length)
+          throw new BadRequestException('Menus requis pour ce type de réservation');
+        if (!menuQuantities || menuQuantities.length !== menuIds.length)
+          throw new BadRequestException('Les quantités doivent correspondre aux menus.');
+      }
+
+      await queryRunner.manager.update(Reservation, id, {
+        ...data,
+        date,
+        heure_debut,
+        heure_fin,
+        client,
+        type_reservation,
+      });
+
+      await queryRunner.manager.delete(ReservationTable, { reservation: { id } });
+      const tables = await queryRunner.manager.findBy(Table, { id: In(tableIds) });
+      const reservationTables = tables.map((table) =>
+        queryRunner.manager.create(ReservationTable, { table, reservation: existing }),
+      );
+      await queryRunner.manager.save(ReservationTable, reservationTables);
+
+      await queryRunner.manager.delete(ReservationMenu, { reservation: { id } });
+      if (type_reservation && type_reservation !== 'standard' && menuIds?.length) {
+        const menus = await queryRunner.manager.findBy(Menu, { id: In(menuIds) });
+        const reservationMenus = menus.map((menu, index) =>
+          queryRunner.manager.create(ReservationMenu, {
+            menu,
+            reservation: existing,
+            quantity: menuQuantities[index],
+          }),
+        );
+        await queryRunner.manager.save(ReservationMenu, reservationMenus);
+      }
+
+      if (type_reservation !== 'standard' && type_paiment) {
+        if (type_paiment === 'mobile_money' && !reference)
+          throw new BadRequestException('Référence requise pour mobile money.');
+        if (type_paiment !== 'stripe') {
+          if (montant == null || isNaN(montant))
+            throw new BadRequestException('Montant invalide ou manquant.');
+
+          const existingPayment = await queryRunner.manager.findOne(PaimentReservationTable, {
+            where: { reservation: { id } },
+          });
+
+          if (existingPayment) {
+            await queryRunner.manager.update(PaimentReservationTable, existingPayment.id, {
+              type_paiment,
+              reference: type_paiment === 'mobile_money' ? reference : undefined,
+              montant,
+            });
+          } else {
+            const newPayment = queryRunner.manager.create(PaimentReservationTable, {
+              reservation: existing,
+              type_paiment,
+              reference: type_paiment === 'mobile_money' ? reference : undefined,
+              montant,
+            });
+            await queryRunner.manager.save(PaimentReservationTable, newPayment);
+          }
+        }
+      } else {
+        await queryRunner.manager.delete(PaimentReservationTable, { reservation: { id } });
+      }
+
+      await queryRunner.commitTransaction();
+
+      return this.reservationRepository.findOne({
+        where: { id },
+        relations: [
+          'client',
+          'reservationTables.table',
+          'reservationMenus.menu',
+          'paimentReservationTable',
+        ],
+      });
+    } catch (error) {
+      await queryRunner.rollbackTransaction();
+      throw error;
+    } finally {
+      await queryRunner.release();
+    }
   }
 
 
