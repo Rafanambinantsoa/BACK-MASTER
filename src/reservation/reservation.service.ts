@@ -42,12 +42,32 @@ export class ReservationService {
       type_paiment,
       reference,
       montant,
+      client_email,
+      client_nom,
+      client_telephone,
+      client_adresse,
       ...data
     } = dto;
 
-    // Vérification client
-    const client = await this.clientRepository.findOneBy({ id: dto.client_id });
-    if (!client) throw new NotFoundException('Client introuvable');
+    // Vérification ou création client par email
+    if (!client_email) throw new BadRequestException('Email client requis');
+
+    let client = await this.clientRepository.findOne({ where: { email: client_email } });
+
+    if (client) {
+      client.nom = client_nom || client.nom;
+      client.telephone = client_telephone || client.telephone;
+      client.adresse = client_adresse || client.adresse;
+      await this.clientRepository.save(client);
+    } else {
+      client = this.clientRepository.create({
+        nom: client_nom,
+        email: client_email,
+        telephone: client_telephone,
+        adresse: client_adresse,
+      });
+      await this.clientRepository.save(client);
+    }
 
     // Vérification des tables
     if (!tableIds || tableIds.length === 0)
@@ -55,8 +75,7 @@ export class ReservationService {
 
     for (const tableId of tableIds) {
       const tableExists = await this.tableRepository.findOneBy({ id: tableId });
-      if (!tableExists)
-        throw new NotFoundException(`Table ${tableId} introuvable`);
+      if (!tableExists) throw new NotFoundException(`Table ${tableId} introuvable`);
 
       const dispo = await this.verifierDisponibiliteTable(tableId, date, heure_debut, heure_fin);
       if (!dispo.disponible)
@@ -70,15 +89,14 @@ export class ReservationService {
 
       for (const menuId of menuIds) {
         const menuExists = await this.menuRepository.findOneBy({ id: menuId });
-        if (!menuExists)
-          throw new NotFoundException(`Menu ${menuId} introuvable`);
+        if (!menuExists) throw new NotFoundException(`Menu ${menuId} introuvable`);
       }
     }
 
-    // Création de la réservation
+    // Création réservation
     const reservation = this.reservationRepository.create({
       ...data,
-      client_id: dto.client_id,
+      client,
       date,
       heure_debut,
       heure_fin,
@@ -102,20 +120,14 @@ export class ReservationService {
       await this.reservationMenuRepository.save(reservationMenus);
     }
 
-    // Gestion du paiement
+    // Gestion paiement
     if (type_reservation && type_reservation !== 'standard' && type_paiment) {
-      // Validation selon le type de paiement
-      if (type_paiment === 'mobile_money') {
-        if (!reference)
-          throw new BadRequestException('Une référence est requise pour un paiement mobile money.');
-      }
+      if (type_paiment === 'mobile_money' && !reference)
+        throw new BadRequestException('Référence requise pour mobile money.');
 
-      if (type_paiment === 'stripe') {
-        // On ne crée pas de paiement pour Stripe (sera géré plus tard)
-      } else {
-        // Pour mobile_money et espece
+      if (type_paiment !== 'stripe') {
         if (montant == null || isNaN(montant))
-          throw new BadRequestException('Le montant du paiement est requis et doit être un nombre.');
+          throw new BadRequestException('Montant invalide ou manquant.');
 
         const paiement = this.paimentReservationTableRepository.create({
           reservation: saved,
@@ -123,7 +135,6 @@ export class ReservationService {
           reference: type_paiment === 'mobile_money' ? reference : undefined,
           montant,
         });
-
         await this.paimentReservationTableRepository.save(paiement);
       }
     }
@@ -182,32 +193,45 @@ export class ReservationService {
       type_paiment,
       reference,
       montant,
+      client_email,
+      client_nom,
+      client_telephone,
+      client_adresse,
       ...data
     } = dto;
 
     const existing = await this.reservationRepository.findOne({
       where: { id },
-      relations: [
-        'reservationTables',
-        'reservationMenus',
-        'paimentReservationTable',
-      ],
+      relations: ['reservationTables', 'reservationMenus', 'paimentReservationTable'],
     });
-    if (!existing)
-      throw new NotFoundException(`Réservation ${id} introuvable`);
+    if (!existing) throw new NotFoundException(`Réservation ${id} introuvable`);
 
-    // Vérifier client
-    const client = await this.clientRepository.findOneBy({ id: dto.client_id });
-    if (!client) throw new NotFoundException('Client introuvable');
+    // Vérification ou création du client
+    if (!client_email) throw new BadRequestException('Email client requis');
 
-    // Vérifier les tables
+    let client = await this.clientRepository.findOne({ where: { email: client_email } });
+    if (client) {
+      client.nom = client_nom || client.nom;
+      client.telephone = client_telephone || client.telephone;
+      client.adresse = client_adresse || client.adresse;
+      await this.clientRepository.save(client);
+    } else {
+      client = this.clientRepository.create({
+        nom: client_nom,
+        email: client_email,
+        telephone: client_telephone,
+        adresse: client_adresse,
+      });
+      await this.clientRepository.save(client);
+    }
+
+    // Vérification tables
     if (!tableIds || tableIds.length === 0)
       throw new BadRequestException('Au moins une table doit être spécifiée');
 
     for (const tableId of tableIds) {
       const tableExists = await this.tableRepository.findOneBy({ id: tableId });
-      if (!tableExists)
-        throw new NotFoundException(`Table ${tableId} introuvable`);
+      if (!tableExists) throw new NotFoundException(`Table ${tableId} introuvable`);
 
       const dispo = await this.verifierDisponibiliteTable(
         tableId,
@@ -220,15 +244,14 @@ export class ReservationService {
         throw new BadRequestException(`Table ${tableId} déjà réservée sur cette période`);
     }
 
-    // Vérifier les menus si non standard
+    // Vérification menus
     if (type_reservation && type_reservation !== 'standard') {
       if (!menuIds || menuIds.length === 0)
         throw new BadRequestException('Menus requis pour ce type de réservation');
 
       for (const menuId of menuIds) {
         const menuExists = await this.menuRepository.findOneBy({ id: menuId });
-        if (!menuExists)
-          throw new NotFoundException(`Menu ${menuId} introuvable`);
+        if (!menuExists) throw new NotFoundException(`Menu ${menuId} introuvable`);
       }
     }
 
@@ -238,11 +261,11 @@ export class ReservationService {
       date,
       heure_debut,
       heure_fin,
-      client_id: dto.client_id,
+      client,
       type_reservation,
     });
 
-    // Mise à jour des tables
+    // Mise à jour tables
     await this.reservationTableRepository.delete({ reservation: { id } });
     const tables = await this.tableRepository.findBy({ id: In(tableIds) });
     const reservation = existing;
@@ -251,7 +274,7 @@ export class ReservationService {
     );
     await this.reservationTableRepository.save(reservationTables);
 
-    // Mise à jour des menus
+    // Mise à jour menus
     await this.reservationMenuRepository.delete({ reservation: { id } });
     if (type_reservation && type_reservation !== 'standard' && menuIds?.length) {
       const menus = await this.menuRepository.findBy({ id: In(menuIds) });
@@ -261,21 +284,15 @@ export class ReservationService {
       await this.reservationMenuRepository.save(reservationMenus);
     }
 
-    // Gestion du paiement
+    // Gestion paiement
     if (type_reservation && type_reservation !== 'standard' && type_paiment) {
-      // Validation selon le type de paiement
-      if (type_paiment === 'mobile_money') {
-        if (!reference)
-          throw new BadRequestException('Une référence est requise pour un paiement mobile money.');
-      }
+      if (type_paiment === 'mobile_money' && !reference)
+        throw new BadRequestException('Référence requise pour mobile money.');
 
-      if (type_paiment === 'stripe') {
-        // Aucun paiement enregistré ici
-      } else {
+      if (type_paiment !== 'stripe') {
         if (montant == null || isNaN(montant))
-          throw new BadRequestException('Le montant du paiement est requis et doit être un nombre.');
+          throw new BadRequestException('Montant invalide ou manquant.');
 
-        // Vérifie si un paiement existe déjà
         const existingPayment = await this.paimentReservationTableRepository.findOne({
           where: { reservation: { id } },
         });
@@ -297,7 +314,6 @@ export class ReservationService {
         }
       }
     } else {
-      // Si la réservation devient standard, on supprime le paiement
       await this.paimentReservationTableRepository.delete({ reservation: { id } });
     }
 

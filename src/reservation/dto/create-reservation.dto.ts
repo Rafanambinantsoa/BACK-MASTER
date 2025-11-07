@@ -1,8 +1,8 @@
 import { IsArray, IsNotEmpty, IsOptional } from "class-validator";
 
 export class CreateReservationDto {
-    @IsNotEmpty()
-    client_id: number;
+    // @IsNotEmpty()
+    // client_id: number;
 
     @IsNotEmpty()
     date: Date;
@@ -34,5 +34,17 @@ export class CreateReservationDto {
 
     @IsOptional()
     type_paiment: string;
+
+    @IsNotEmpty()
+    client_email: string;
+
+    @IsNotEmpty()
+    client_nom: string;
+
+    @IsOptional()
+    client_telephone: string;
+
+    @IsOptional()
+    client_adresse: string;
 
 }
