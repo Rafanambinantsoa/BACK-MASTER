@@ -22,6 +22,10 @@ export class CreateReservationDto {
     @IsArray()
     tableIds: number[];
 
+    @IsArray()
+    menuQuantities: number[];
+
+
     @IsOptional()
     @IsArray()
     menuIds: number[];

@@ -23,4 +23,8 @@ export class UpdateReservationDto extends PartialType(CreateReservationDto) {
     client_telephone: string;
 
     client_adresse: string;
+
+    menuQuantities: number[];
+
+
 }

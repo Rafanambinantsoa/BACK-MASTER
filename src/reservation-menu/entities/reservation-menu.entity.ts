@@ -1,6 +1,6 @@
 import { Menu } from "src/menu/entities/menu.entity";
 import { Reservation } from "src/reservation/entities/reservation.entity";
-import { Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from "typeorm";
+import { Column, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from "typeorm";
 
 @Entity()
 export class ReservationMenu {
@@ -14,4 +14,7 @@ export class ReservationMenu {
     @ManyToOne(() => Menu, (menu) => menu.reservationMenus, { onDelete: 'CASCADE' })
     @JoinColumn({ name: 'menuId' })
     menu: Menu;
+
+    @Column({ type: 'int', default: 1 })
+    quantity: number;
 }
