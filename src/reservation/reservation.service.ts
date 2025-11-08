@@ -350,6 +350,15 @@ export class ReservationService {
     if (!table)
       throw new NotFoundException(`Table ${tableId} introuvable`);
 
+    // Vérifier que la date n’est pas dans le passé (on autorise uniquement aujourd’hui et après)
+    const aujourdHui = new Date();
+    const dateSansHeure = new Date(date);
+    dateSansHeure.setHours(0, 0, 0, 0);
+    aujourdHui.setHours(0, 0, 0, 0);
+
+    if (dateSansHeure < aujourdHui)
+      throw new BadRequestException('La date ne peut pas être dans le passé');
+
     const formatHeure = /^([01]\d|2[0-3]):(00|30)$/;
     if (!formatHeure.test(heureDebut) || !formatHeure.test(heureFin))
       throw new BadRequestException('Format d’heure invalide (HH:MM, intervalle de 30 min)');
@@ -376,15 +385,26 @@ export class ReservationService {
 
     if (conflits.length > 0)
       return { disponible: false, message: 'Table occupée', conflits };
+
     return { disponible: true, message: 'Table disponible' };
   }
+
 
   async findTablesDisponibles(dispoDto: DispoDto) {
     const { date, heureDebut, heureFin } = dispoDto;
     const formatHeure = /^([01]\d|2[0-3]):(00|30)$/;
 
+    // Vérifier que la date n’est pas dans le passé
+    const aujourdHui = new Date();
+    const dateSansHeure = new Date(date);
+    aujourdHui.setHours(0, 0, 0, 0);
+    dateSansHeure.setHours(0, 0, 0, 0);
+
+    if (dateSansHeure < aujourdHui)
+      throw new BadRequestException('La date ne peut pas être dans le passé');
+
     if (!formatHeure.test(heureDebut) || !formatHeure.test(heureFin))
-      throw new BadRequestException('Format d’heure invalide');
+      throw new BadRequestException('Format d’heure invalide (HH:MM, intervalle de 30 min)');
 
     const [hdH, hdM] = heureDebut.split(':').map(Number);
     const [hfH, hfM] = heureFin.split(':').map(Number);
@@ -409,4 +429,5 @@ export class ReservationService {
 
     return { date, heureDebut, heureFin, disponibles, total: disponibles.length };
   }
+
 }
