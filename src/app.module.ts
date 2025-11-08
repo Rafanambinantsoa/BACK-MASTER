@@ -17,6 +17,8 @@ import { ReservationModule } from './reservation/reservation.module';
 import { ReservationTableModule } from './reservation-table/reservation-table.module';
 import { ReservationMenuModule } from './reservation-menu/reservation-menu.module';
 import { PaimentReservationTableModule } from './paiment-reservation-table/paiment-reservation-table.module';
+import { CommandeModule } from './commande/commande.module';
+import { CommandeMenuModule } from './commande-menu/commande-menu.module';
 
 @Module({
   imports: [
@@ -47,6 +49,8 @@ import { PaimentReservationTableModule } from './paiment-reservation-table/paime
     ReservationTableModule,
     ReservationMenuModule,
     PaimentReservationTableModule,
+    CommandeModule,
+    CommandeMenuModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -1,3 +1,4 @@
+import { CommandeMenu } from "src/commande-menu/entities/commande-menu.entity";
 import { ReservationMenu } from "src/reservation-menu/entities/reservation-menu.entity";
 import { TypeMenu } from "src/type_menu/entities/type_menu.entity";
 import { Column, Entity, JoinColumn, ManyToOne, OneToMany, PrimaryGeneratedColumn } from "typeorm";
@@ -28,6 +29,9 @@ export class Menu {
 
     @OneToMany(() => ReservationMenu, (reservationMenu) => reservationMenu.menu, { eager: true })
     reservationMenus: ReservationMenu[];
+
+    @OneToMany(() => CommandeMenu, (commandeMenu) => commandeMenu.menu, { eager: true })
+    commandeMenus: CommandeMenu[];
 
 }
 

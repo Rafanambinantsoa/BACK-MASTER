@@ -1,4 +1,5 @@
 import { Client } from "src/client/entities/client.entity";
+import { Commande } from "src/commande/entities/commande.entity";
 import { PaimentReservationTable } from "src/paiment-reservation-table/entities/paiment-reservation-table.entity";
 import { ReservationMenu } from "src/reservation-menu/entities/reservation-menu.entity";
 import { ReservationTable } from "src/reservation-table/entities/reservation-table.entity";
@@ -39,4 +40,7 @@ export class Reservation {
 
     @OneToOne(() => PaimentReservationTable, (paimentReservationTable) => paimentReservationTable.reservation)
     paimentReservationTable: PaimentReservationTable;
+
+    @OneToMany(() => Commande, (commande) => commande.reservation)
+    commandes: Commande[];
 }
