@@ -6,9 +6,10 @@ import { Commande } from './entities/commande.entity';
 import { Reservation } from 'src/reservation/entities/reservation.entity';
 import { Menu } from 'src/menu/entities/menu.entity';
 import { CommandeMenu } from 'src/commande-menu/entities/commande-menu.entity';
+import { Client } from 'src/client/entities/client.entity';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Commande, Reservation, Menu, CommandeMenu])],
+  imports: [TypeOrmModule.forFeature([Commande, Reservation, Menu, CommandeMenu, Client])],
   controllers: [CommandeController],
   providers: [CommandeService],
 })
