@@ -14,6 +14,9 @@ export class CreateMenuDto {
     @IsOptional()
     image: string
 
+    @IsNotEmpty()
+    prix: number;
+
     @IsNotEmpty({ message: "C'est  obligatoire le type menu" })
     type_menu_id: number;
 }

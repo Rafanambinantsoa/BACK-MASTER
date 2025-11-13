@@ -20,6 +20,9 @@ export class Menu {
     @Column({ nullable: true })
     image: string
 
+    @Column('decimal', { precision: 10, scale: 2 })
+    prix: number;
+
     @Column({ nullable: true })
     type_menu_id: number;
 

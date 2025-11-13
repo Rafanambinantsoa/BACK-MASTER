@@ -71,11 +71,22 @@ export class CommandeService {
         await queryRunner.manager.save(ReservationTable, reservationTable);
       }
 
+      //Calcul du prix total
+      let totalPrice = 0;
+      for (let i = 0; i < dto.menuIds.length; i++) {
+        const menu = await queryRunner.manager.findOne(Menu, { where: { id: dto.menuIds[i] } });
+        if (!menu) {
+          throw new BadRequestException(`Le menu avec l'ID ${dto.menuIds[i]} n'existe pas`);
+        }
+        totalPrice += menu.prix * dto.quantities[i];
+      }
+
       // 3️⃣ Créer la commande
       const commande = queryRunner.manager.create(Commande, {
         reservation_id: savedReservation.id,
         date_commande: dto.date_commande,
         status: 'en_cours',
+        total_price: totalPrice,
       });
       const savedCommande = await queryRunner.manager.save(Commande, commande);
 
@@ -139,7 +150,7 @@ export class CommandeService {
     await queryRunner.startTransaction();
 
     try {
-      // 🔹 Récupérer la commande avec sa réservation
+      // 1️⃣ Vérifier si la commande existe avec sa réservation
       const existingCommande = await queryRunner.manager.findOne(Commande, {
         where: { id },
         relations: ['reservation', 'reservation.reservationTables', 'reservation.reservationTables.table'],
@@ -153,7 +164,7 @@ export class CommandeService {
         throw new BadRequestException('Réservation introuvable');
       }
 
-      // 🔹 Mettre à jour le client
+      // 2️⃣ Mettre à jour le client
       const client = await queryRunner.manager.findOne(Client, { where: { id: reservation.client_id } });
       if (client) {
         queryRunner.manager.merge(Client, client, {
@@ -165,21 +176,22 @@ export class CommandeService {
         await queryRunner.manager.save(Client, client);
       }
 
-      // 🔹 Mettre à jour la réservation
+      // 3️⃣ Mettre à jour la réservation
       queryRunner.manager.merge(Reservation, reservation, {
         date: dto.date_reservation ? new Date(dto.date_reservation) : reservation.date,
         heure_debut: dto.heure_debut || reservation.heure_debut,
         heure_fin: dto.heure_fin || reservation.heure_fin,
         status: dto.status_reservation || reservation.status,
+        type_reservation: reservation.type_reservation || 'table',
       });
       await queryRunner.manager.save(Reservation, reservation);
 
-      // 🔹 Mettre à jour les tables liées à la réservation
+      // 4️⃣ Mettre à jour les tables liées
       if (dto.tablesIds) {
-        // Supprimer les anciennes liaisons
+        // Supprimer les anciennes associations
         await queryRunner.manager.delete(ReservationTable, { reservation: { id: reservation.id } });
 
-        // Créer les nouvelles liaisons
+        // Créer les nouvelles associations
         for (const tableId of dto.tablesIds) {
           const table = await queryRunner.manager.findOne(Table, { where: { id: tableId } });
           if (!table) throw new BadRequestException(`La table avec l'ID ${tableId} n'existe pas`);
@@ -192,33 +204,46 @@ export class CommandeService {
         }
       }
 
-      // 🔹 Mettre à jour la commande
-      queryRunner.manager.merge(Commande, existingCommande, {
-        date_commande: dto.date_commande || existingCommande.date_commande,
-        status: dto.status || existingCommande.status,
-      });
-      await queryRunner.manager.save(Commande, existingCommande);
-
-      // 🔹 Supprimer les anciens CommandeMenu
+      // 5️⃣ Supprimer les anciens CommandeMenu
       await queryRunner.manager.delete(CommandeMenu, { commande_id: existingCommande.id });
 
-      // 🔹 Créer les nouveaux CommandeMenu
+      // Vérification de cohérence
       if (!dto.menuIds || !dto.quantities || dto.menuIds.length !== dto.quantities.length) {
         throw new BadRequestException('menuIds et quantities doivent avoir la même longueur');
       }
 
+      // 6️⃣ Recalculer le prix total
+      let totalPrice = 0;
       for (let i = 0; i < dto.menuIds.length; i++) {
         const menu = await queryRunner.manager.findOne(Menu, { where: { id: dto.menuIds[i] } });
         if (!menu) {
           throw new BadRequestException(`Le menu avec l'ID ${dto.menuIds[i]} n'existe pas`);
         }
 
+        totalPrice += menu.prix * dto.quantities[i];
+
         const commandeMenu = queryRunner.manager.create(CommandeMenu, {
           commande_id: existingCommande.id,
-          menu,
+          menuId: dto.menuIds[i],
           quantity: dto.quantities[i],
         });
         await queryRunner.manager.save(CommandeMenu, commandeMenu);
+      }
+
+      // 7️⃣ Mettre à jour la commande principale
+      queryRunner.manager.merge(Commande, existingCommande, {
+        date_commande: dto.date_commande || existingCommande.date_commande,
+        status: dto.status || existingCommande.status,
+        total_price: totalPrice,
+      });
+      await queryRunner.manager.save(Commande, existingCommande);
+
+      // 8️⃣ Mettre à jour la référence si besoin
+      if (!existingCommande.reference) {
+        existingCommande.reference = `COM-${existingCommande.id}`;
+        await queryRunner.manager.update(Commande, existingCommande.id, {
+          reference: existingCommande.reference,
+        });
       }
 
       await queryRunner.commitTransaction();
@@ -234,6 +259,7 @@ export class CommandeService {
       await queryRunner.release();
     }
   }
+
 
 
 

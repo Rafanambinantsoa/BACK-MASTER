@@ -28,4 +28,7 @@ export class Commande {
     @Column({ default: "en_cours" })
     status: string;
 
+    @Column({ default: 0 })
+    total_price: number;
+
 }
