@@ -405,29 +405,48 @@ export class ReservationService {
     if (!formatHeure.test(heureDebut) || !formatHeure.test(heureFin))
       throw new BadRequestException('Format d’heure invalide (HH:MM, intervalle de 30 min)');
 
+    // Convertir heureDebut et heureFin en minutes depuis minuit
     const [hdH, hdM] = heureDebut.split(':').map(Number);
     const [hfH, hfM] = heureFin.split(':').map(Number);
-    if (hfH * 60 + hfM <= hdH * 60 + hdM)
-      throw new BadRequestException('Heure de fin avant heure de début');
+    const debutMinutes = hdH * 60 + hdM;
+    let finMinutes = hfH * 60 + hfM;
+
+    // Passage à minuit
+    if (finMinutes <= debutMinutes) {
+      finMinutes += 24 * 60;
+    }
 
     const toutesTables = await this.tableRepository.find();
 
-    const tablesReservees = await this.reservationTableRepository
-      .createQueryBuilder('reservationTable')
-      .leftJoin('reservationTable.reservation', 'reservation')
-      .where('reservation.date = :date', { date })
-      .andWhere('(reservation.heure_debut < :heureFin AND reservation.heure_fin > :heureDebut)', {
-        heureDebut,
-        heureFin,
-      })
-      .select('reservationTable.tableId', 'tableId')
-      .getRawMany();
+    // Récupérer toutes les réservations pour cette date
+    const reservations = await this.reservationTableRepository.find({
+      where: { reservation: { date } },
+      relations: ['reservation', 'table']
+    });
 
-    const idsReservees = tablesReservees.map(r => r.tableId);
+    // Identifier les tables réservées qui chevauchent l'intervalle
+    const idsReservees = reservations
+      .filter(r => {
+        let rDebut = r.reservation.heure_debut.split(':').map(Number);
+        let rFin = r.reservation.heure_fin.split(':').map(Number);
+
+        let rDebutMinutes = rDebut[0] * 60 + rDebut[1];
+        let rFinMinutes = rFin[0] * 60 + rFin[1];
+
+        // Passage à minuit pour la réservation
+        if (rFinMinutes <= rDebutMinutes) rFinMinutes += 24 * 60;
+
+        // Chevauchement ?
+        return rDebutMinutes < finMinutes && rFinMinutes > debutMinutes;
+      })
+      .map(r => r.table.id);
+
     const disponibles = toutesTables.filter(t => !idsReservees.includes(t.id));
 
     return { date, heureDebut, heureFin, disponibles, total: disponibles.length };
   }
+
+
 
 
 }

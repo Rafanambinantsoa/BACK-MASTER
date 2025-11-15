@@ -115,6 +115,7 @@ export class CommandeService {
             commande_id: savedCommande.id,
             menuId: dto.menuIds[i],
             quantity: dto.quantities[i],
+            status: "en_attente"
           }),
         );
       }
@@ -324,55 +325,6 @@ export class CommandeService {
     }
   }
 
-  async verifierDisponibiliteTable(
-    tableId: number,
-    date: Date,
-    heureDebut: string,
-    heureFin: string,
-    reservationIdToExclude?: number,
-  ) {
-    const table = await this.tableRepository.findOneBy({ id: tableId });
-    if (!table)
-      throw new NotFoundException(`Table ${tableId} introuvable`);
-
-    // Vérifier que la date n’est pas dans le passé (on autorise uniquement aujourd’hui et après)
-    const aujourdHui = new Date();
-    const dateSansHeure = new Date(date);
-    dateSansHeure.setHours(0, 0, 0, 0);
-    aujourdHui.setHours(0, 0, 0, 0);
-
-    if (dateSansHeure < aujourdHui)
-      throw new BadRequestException('La date ne peut pas être dans le passé');
-
-    const formatHeure = /^([01]\d|2[0-3]):(00|30)$/;
-    if (!formatHeure.test(heureDebut) || !formatHeure.test(heureFin))
-      throw new BadRequestException('Format d’heure invalide (HH:MM, intervalle de 30 min)');
-
-    const [hdH, hdM] = heureDebut.split(':').map(Number);
-    const [hfH, hfM] = heureFin.split(':').map(Number);
-    if (hfH * 60 + hfM <= hdH * 60 + hdM)
-      throw new BadRequestException('Heure de fin avant heure de début');
-
-    const query = this.reservationTableRepository
-      .createQueryBuilder('reservationTable')
-      .leftJoinAndSelect('reservationTable.reservation', 'reservation')
-      .where('reservationTable.table = :tableId', { tableId })
-      .andWhere('reservation.date = :date', { date })
-      .andWhere('(reservation.heure_debut < :heureFin AND reservation.heure_fin > :heureDebut)', {
-        heureDebut,
-        heureFin,
-      });
-
-    if (reservationIdToExclude)
-      query.andWhere('reservation.id != :reservationIdToExclude', { reservationIdToExclude });
-
-    const conflits = await query.getMany();
-
-    if (conflits.length > 0)
-      return { disponible: false, message: 'Table occupée', conflits };
-
-    return { disponible: true, message: 'Table disponible' };
-  }
 
   //Mettre a  jour le status d'un commande
   async updateStatus(id: number) {
@@ -428,16 +380,11 @@ export class CommandeService {
       if (menuIds.length !== quantities.length) {
         throw new BadRequestException('Le nombre de menus doit correspondre au nombre de quantités');
       }
-
       if (menuIds.length === 0) {
         throw new BadRequestException('Au moins un menu doit être spécifié');
       }
-
-      // Vérifier que toutes les quantités sont valides
-      for (const quantity of quantities) {
-        if (quantity <= 0) {
-          throw new BadRequestException(`La quantité doit être supérieure à 0`);
-        }
+      if (quantities.some(q => q <= 0)) {
+        throw new BadRequestException('Toutes les quantités doivent être supérieures à 0');
       }
 
       // Charger tous les menus pour vérifier qu'ils existent
@@ -446,47 +393,63 @@ export class CommandeService {
         throw new BadRequestException('Un ou plusieurs menus sont introuvables');
       }
 
-      // Supprimer tous les CommandeMenu existants pour cette commande
-      await queryRunner.manager.delete(CommandeMenu, { commande_id: commandeId });
-
       // Créer une map pour associer menuId -> Menu (pour le calcul du prix)
       const menuMap = new Map<number, Menu>();
       menus.forEach(menu => menuMap.set(menu.id, menu));
 
-      // Calculer le prix total
+      // Charger les CommandeMenu existants pour cette commande
+      const existingCommandeMenus = await queryRunner.manager.find(CommandeMenu, {
+        where: { commande_id: commandeId },
+      });
+      const existingMap = new Map<number, CommandeMenu>();
+      existingCommandeMenus.forEach(cm => existingMap.set(cm.menuId, cm));
+
       let totalPrice = 0;
+      const toSave: CommandeMenu[] = [];
+      const menuIdsSet = new Set(menuIds);
+
+      // Mettre à jour ou créer les CommandeMenu
       for (let i = 0; i < menuIds.length; i++) {
         const menuId = menuIds[i];
-        const menu = menuMap.get(menuId);
-        if (!menu) {
-          throw new BadRequestException(`Menu ${menuId} introuvable`);
+        const quantity = quantities[i];
+        const menu = menuMap.get(menuId)!;
+        totalPrice += menu.prix * quantity;
+
+        if (existingMap.has(menuId)) {
+          // Mise à jour de la quantité existante
+          const cm = existingMap.get(menuId)!;
+          cm.quantity = quantity;
+          toSave.push(cm);
+          existingMap.delete(menuId); // on marque comme traité
+        } else {
+          // Créer un nouveau CommandeMenu
+          const cm = queryRunner.manager.create(CommandeMenu, {
+            commande_id: commandeId,
+            menuId,
+            quantity,
+          });
+          toSave.push(cm);
         }
-        totalPrice += menu.prix * quantities[i];
       }
 
-      // Créer tous les CommandeMenu en batch
-      const commandeMenus: CommandeMenu[] = [];
-      for (let i = 0; i < menuIds.length; i++) {
-        const commandeMenu = queryRunner.manager.create(CommandeMenu, {
-          commande_id: commandeId,
-          menuId: menuIds[i],
-          quantity: quantities[i],
-        });
-        commandeMenus.push(commandeMenu);
+      // Supprimer les CommandeMenu qui ne sont pas dans la nouvelle liste
+      const toDelete = Array.from(existingMap.values());
+      if (toDelete.length > 0) {
+        await queryRunner.manager.remove(CommandeMenu, toDelete);
       }
 
-      // Sauvegarder tous les CommandeMenu en batch
-      if (commandeMenus.length > 0) {
-        await queryRunner.manager.save(CommandeMenu, commandeMenus);
+      // Sauvegarder les CommandeMenu à créer ou mettre à jour
+      if (toSave.length > 0) {
+        await queryRunner.manager.save(toSave);
       }
 
       // Mettre à jour le prix total de la commande
-      await queryRunner.manager.update(Commande, commandeId, { total_price: totalPrice });
+      await queryRunner.manager.update(Commande, commandeId, { status: "en_cours", total_price: totalPrice });
 
       await queryRunner.commitTransaction();
       await queryRunner.release();
 
-      // Recharger la commande avec les relations pour le retour (après avoir libéré le queryRunner)
+      // Recharger la commande avec les relations pour le retour
       const updatedCommande = await this.commandeRepo.findOne({
         where: { id: commandeId },
         relations: ['commandeMenu.menu'],
@@ -502,5 +465,6 @@ export class CommandeService {
       throw new BadRequestException(error.message);
     }
   }
+
 
 }
