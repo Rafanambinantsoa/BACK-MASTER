@@ -394,7 +394,6 @@ export class ReservationService {
     const { date, heureDebut, heureFin } = dispoDto;
     const formatHeure = /^([01]\d|2[0-3]):(00|30)$/;
 
-    // Vérifier que la date n’est pas dans le passé
     const aujourdHui = new Date();
     const dateSansHeure = new Date(date);
     aujourdHui.setHours(0, 0, 0, 0);
@@ -421,13 +420,14 @@ export class ReservationService {
         heureDebut,
         heureFin,
       })
-      .select('reservationTable.tableId')
+      .select('reservationTable.tableId', 'tableId')
       .getRawMany();
 
-    const idsReservees = tablesReservees.map((r) => r.reservationTable_tableId);
-    const disponibles = toutesTables.filter((t) => !idsReservees.includes(t.id));
+    const idsReservees = tablesReservees.map(r => r.tableId);
+    const disponibles = toutesTables.filter(t => !idsReservees.includes(t.id));
 
     return { date, heureDebut, heureFin, disponibles, total: disponibles.length };
   }
+
 
 }

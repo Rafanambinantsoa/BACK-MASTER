@@ -14,6 +14,9 @@ export class CommandeMenu {
     @Column({ nullable: true })
     menuId: number
 
+    @Column({ default: 'en_cours' })
+    status: string;
+
     @ManyToOne(() => Commande, (commande) => commande.commandeMenu)
     @JoinColumn({ name: 'commande_id' }) // précise la colonne FK
     commande: Commande;

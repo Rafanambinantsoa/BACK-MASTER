@@ -2,10 +2,11 @@ import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/commo
 import { CommandeService } from './commande.service';
 import { CreateCommandeDto } from './dto/create-commande.dto';
 import { UpdateCommandeDto } from './dto/update-commande.dto';
+import { UpdateCommandeMenuStatusDto } from './dto/update-commande-menu-status.dto';
 
 @Controller('commande')
 export class CommandeController {
-  constructor(private readonly commandeService: CommandeService) {}
+  constructor(private readonly commandeService: CommandeService) { }
 
   @Post()
   create(@Body() createCommandeDto: CreateCommandeDto) {
@@ -30,5 +31,21 @@ export class CommandeController {
   @Delete(':id')
   remove(@Param('id') id: string) {
     return this.commandeService.remove(+id);
+  }
+
+  @Patch(':id/status')
+  updateStatus(@Param('id') id: string) {
+    return this.commandeService.updateStatus(+id);
+  }
+
+  @Patch(':commandeId/menus/status')
+  async updateCommandeMenuStatus(
+    @Param('commandeId') commandeId: number,
+    @Body() dto: UpdateCommandeMenuStatusDto
+  ) {
+    return this.commandeService.udpateCommandeMenuStatus(
+      commandeId,
+      dto
+    );
   }
 }
