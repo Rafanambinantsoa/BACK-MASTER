@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository, InjectDataSource } from '@nestjs/typeorm';
-import { Repository, DataSource } from 'typeorm';
+import { Repository, DataSource, In } from 'typeorm';
 import { Commande } from './entities/commande.entity';
 import { CreateCommandeDto } from './dto/create-commande.dto';
 import { UpdateCommandeDto } from './dto/update-commande.dto';
@@ -133,8 +133,6 @@ export class CommandeService {
     }
   }
 
-
-
   findAll() {
     return this.commandeRepo.find({
       relations: ['reservation.reservationTables.table', 'reservation.client', 'commandeMenu.menu']
@@ -144,7 +142,7 @@ export class CommandeService {
   findOne(id: number) {
     return this.commandeRepo.findOne({
       where: { id },
-      relations: ['reservation.reservationTables', 'reservation.client', 'commandeMenu.menu']
+      relations: ['reservation.reservationTables.table', 'reservation.client', 'commandeMenu.menu']
     });
   }
 
@@ -154,13 +152,12 @@ export class CommandeService {
     await queryRunner.startTransaction();
 
     try {
-      // 1️⃣ Vérifier si la commande existe avec sa réservation
       const existingCommande = await queryRunner.manager.findOne(Commande, {
         where: { id },
         relations: [
           'reservation',
           'reservation.reservationTables',
-          'reservation.reservationTables.table',
+          'reservation.client',
         ],
       });
 
@@ -169,153 +166,90 @@ export class CommandeService {
       }
 
       const reservation = existingCommande.reservation;
-      if (!reservation) {
-        throw new BadRequestException('Réservation introuvable');
-      }
+      const client = reservation.client;
 
-      // 2️⃣ Mettre à jour le client si des champs sont fournis
-      const client = await queryRunner.manager.findOne(Client, {
-        where: { id: reservation.client_id },
+      // 1️⃣ Mise à jour Client
+      if (dto.nom !== undefined) client.nom = dto.nom;
+      if (dto.email !== undefined) client.email = dto.email;
+      if (dto.telephone !== undefined) client.telephone = dto.telephone;
+      if (dto.adresse !== undefined) client.adresse = dto.adresse;
+      await queryRunner.manager.save(Client, client);
+
+      // 2️⃣ Mise à jour Réservation
+      const date = dto.date_reservation ? new Date(dto.date_reservation) : reservation.date;
+      const heureDebut = dto.heure_debut ?? reservation.heure_debut;
+      const heureFin = dto.heure_fin ?? reservation.heure_fin;
+
+      // Mise à jour de la réservation
+      await queryRunner.manager.update(Reservation, reservation.id, {
+        date: date instanceof Date ? date : new Date(date),
+        heure_debut: heureDebut,
+        heure_fin: heureFin,
+        client,
       });
 
-      if (client) {
-        queryRunner.manager.merge(Client, client, {
-          nom: dto.nom ?? client.nom,
-          email: dto.email ?? client.email,
-          telephone: dto.telephone ?? client.telephone,
-          adresse: dto.adresse ?? client.adresse,
-        });
-        await queryRunner.manager.save(Client, client);
-      }
-
-      // 3️⃣ Vérifier la disponibilité des tables si les horaires changent ou si tables changent
-      const nouvelleDate = dto.date_reservation
-        ? new Date(dto.date_reservation)
-        : reservation.date;
-
-      const nouvelleHeureDebut = dto.heure_debut ?? reservation.heure_debut;
-      const nouvelleHeureFin = dto.heure_fin ?? reservation.heure_fin;
-
-      const nouvellesTables = dto.tablesIds ?? reservation.reservationTables.map(rt => rt.table.id);
-
-      for (const tableId of nouvellesTables) {
-        const dispo = await this.verifierDisponibiliteTable(
-          tableId,
-          nouvelleDate,
-          nouvelleHeureDebut,
-          nouvelleHeureFin,
-          reservation.id, // exclure la réservation actuelle
+      // Gestion des tables - Supprimer tous et recréer (comme dans reservation service)
+      if (dto.tablesIds && dto.tablesIds.length > 0) {
+        const dateString = date.toISOString().split('T')[0];
+        await this.verifierDisponibiliteTables(
+          queryRunner.manager,
+          dto.tablesIds,
+          dateString,
+          heureDebut,
+          heureFin,
+          reservation.id,
         );
 
-        if (!dispo.disponible) {
-          throw new BadRequestException(
-            `La table ${tableId} est déjà réservée sur ce créneau`,
-          );
-        }
-      }
-
-      // 4️⃣ Mettre à jour la réservation
-      queryRunner.manager.merge(Reservation, reservation, {
-        date: dto.date_reservation
-          ? new Date(dto.date_reservation)
-          : reservation.date,
-        heure_debut: dto.heure_debut ?? reservation.heure_debut,
-        heure_fin: dto.heure_fin ?? reservation.heure_fin,
-        status: dto.status_reservation ?? reservation.status,
-        type_reservation: reservation.type_reservation || 'table',
-      });
-
-      await queryRunner.manager.save(Reservation, reservation);
-
-      // 5️⃣ Mettre à jour les tables si fourni
-      if (dto.tablesIds) {
-        await queryRunner.manager.delete(ReservationTable, {
-          reservation: { id: reservation.id },
-        });
-
+        // Vérifier que toutes les tables existent
         for (const tableId of dto.tablesIds) {
-          const table = await queryRunner.manager.findOne(Table, { where: { id: tableId } });
-          if (!table) {
-            throw new BadRequestException(`La table avec l'ID ${tableId} n'existe pas`);
-          }
-
-          const reservationTable = queryRunner.manager.create(ReservationTable, {
-            reservation,
-            table,
-          });
-          await queryRunner.manager.save(ReservationTable, reservationTable);
-        }
-      }
-
-      // 6️⃣ Supprimer les anciens menus
-      await queryRunner.manager.delete(CommandeMenu, {
-        commande_id: existingCommande.id,
-      });
-
-      if (!dto.menuIds || !dto.quantities || dto.menuIds.length !== dto.quantities.length) {
-        throw new BadRequestException('menuIds et quantities doivent avoir la même longueur');
-      }
-
-      // 7️⃣ Recalcul total + réenregistrement des menus
-      let totalPrice = 0;
-
-      for (let i = 0; i < dto.menuIds.length; i++) {
-        const menu = await queryRunner.manager.findOne(Menu, {
-          where: { id: dto.menuIds[i] },
-        });
-
-        if (!menu) {
-          throw new BadRequestException(
-            `Le menu avec l'ID ${dto.menuIds[i]} n'existe pas`,
-          );
+          const tableExists = await queryRunner.manager.findOneBy(Table, { id: tableId });
+          if (!tableExists) throw new BadRequestException(`Table ${tableId} introuvable`);
         }
 
-        totalPrice += menu.prix * dto.quantities[i];
+        // Supprimer tous les ReservationTable existants
+        await queryRunner.manager.delete(ReservationTable, { reservation: { id: reservation.id } });
 
-        const commandeMenu = queryRunner.manager.create(CommandeMenu, {
-          commande_id: existingCommande.id,
-          menuId: dto.menuIds[i],
-          quantity: dto.quantities[i],
-        });
+        // Charger toutes les tables en une seule requête
+        const tables = await queryRunner.manager.findBy(Table, { id: In(dto.tablesIds) });
 
-        await queryRunner.manager.save(CommandeMenu, commandeMenu);
+        // Créer tous les ReservationTable en batch
+        const reservationTables = tables.map((table) =>
+          queryRunner.manager.create(ReservationTable, { table, reservation }),
+        );
+        await queryRunner.manager.save(ReservationTable, reservationTables);
       }
 
-      // 8️⃣ Mise à jour commande principale
-      queryRunner.manager.merge(Commande, existingCommande, {
-        date_commande: dto.date_commande ?? existingCommande.date_commande,
-        status: dto.status ?? existingCommande.status,
-        total_price: totalPrice,
-      });
-
-      await queryRunner.manager.save(Commande, existingCommande);
-
-      // 9️⃣ Référence si n’existe pas
-      if (!existingCommande.reference) {
-        existingCommande.reference = `COM-${existingCommande.id}`;
-        await queryRunner.manager.update(Commande, existingCommande.id, {
-          reference: existingCommande.reference,
-        });
+      // 3️⃣ Mise à jour commande
+      if (dto.date_commande !== undefined) {
+        existingCommande.date_commande = dto.date_commande;
       }
+
+
 
       await queryRunner.commitTransaction();
 
+      // Recharger la commande avec toutes les relations pour le retour
+      const updatedCommande = await this.commandeRepo.findOne({
+        where: { id },
+        relations: [
+          'reservation.reservationTables.table',
+          'reservation.client',
+          'commandeMenu.menu',
+        ],
+      });
+
+      await queryRunner.release();
+
       return {
         message: 'Commande mise à jour avec succès',
-        commande: existingCommande,
+        commande: updatedCommande,
       };
     } catch (error) {
       await queryRunner.rollbackTransaction();
-      throw new BadRequestException(error.message);
-    } finally {
       await queryRunner.release();
+      throw new BadRequestException(error.message);
     }
   }
-
-
-
-
-
 
   async remove(id: number) {
     const queryRunner = this.dataSource.createQueryRunner();
@@ -477,5 +411,96 @@ export class CommandeService {
     };
   }
 
+  // Mettre à jour uniquement les menus et quantités d'une commande
+  async updateCommandeMenus(commandeId: number, menuIds: number[], quantities: number[]) {
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    try {
+      // Vérifier que la commande existe
+      const commande = await queryRunner.manager.findOne(Commande, { where: { id: commandeId } });
+      if (!commande) {
+        throw new NotFoundException('Commande introuvable');
+      }
+
+      // Validation
+      if (menuIds.length !== quantities.length) {
+        throw new BadRequestException('Le nombre de menus doit correspondre au nombre de quantités');
+      }
+
+      if (menuIds.length === 0) {
+        throw new BadRequestException('Au moins un menu doit être spécifié');
+      }
+
+      // Vérifier que toutes les quantités sont valides
+      for (const quantity of quantities) {
+        if (quantity <= 0) {
+          throw new BadRequestException(`La quantité doit être supérieure à 0`);
+        }
+      }
+
+      // Charger tous les menus pour vérifier qu'ils existent
+      const menus = await queryRunner.manager.findBy(Menu, { id: In(menuIds) });
+      if (menus.length !== menuIds.length) {
+        throw new BadRequestException('Un ou plusieurs menus sont introuvables');
+      }
+
+      // Supprimer tous les CommandeMenu existants pour cette commande
+      await queryRunner.manager.delete(CommandeMenu, { commande_id: commandeId });
+
+      // Créer une map pour associer menuId -> Menu (pour le calcul du prix)
+      const menuMap = new Map<number, Menu>();
+      menus.forEach(menu => menuMap.set(menu.id, menu));
+
+      // Calculer le prix total
+      let totalPrice = 0;
+      for (let i = 0; i < menuIds.length; i++) {
+        const menuId = menuIds[i];
+        const menu = menuMap.get(menuId);
+        if (!menu) {
+          throw new BadRequestException(`Menu ${menuId} introuvable`);
+        }
+        totalPrice += menu.prix * quantities[i];
+      }
+
+      // Créer tous les CommandeMenu en batch
+      const commandeMenus: CommandeMenu[] = [];
+      for (let i = 0; i < menuIds.length; i++) {
+        const commandeMenu = queryRunner.manager.create(CommandeMenu, {
+          commande_id: commandeId,
+          menuId: menuIds[i],
+          quantity: quantities[i],
+        });
+        commandeMenus.push(commandeMenu);
+      }
+
+      // Sauvegarder tous les CommandeMenu en batch
+      if (commandeMenus.length > 0) {
+        await queryRunner.manager.save(CommandeMenu, commandeMenus);
+      }
+
+      // Mettre à jour le prix total de la commande
+      await queryRunner.manager.update(Commande, commandeId, { total_price: totalPrice });
+
+      await queryRunner.commitTransaction();
+      await queryRunner.release();
+
+      // Recharger la commande avec les relations pour le retour (après avoir libéré le queryRunner)
+      const updatedCommande = await this.commandeRepo.findOne({
+        where: { id: commandeId },
+        relations: ['commandeMenu.menu'],
+      });
+
+      return {
+        message: 'Menus de la commande mis à jour avec succès',
+        commande: updatedCommande,
+      };
+    } catch (error) {
+      await queryRunner.rollbackTransaction();
+      await queryRunner.release();
+      throw new BadRequestException(error.message);
+    }
+  }
 
 }

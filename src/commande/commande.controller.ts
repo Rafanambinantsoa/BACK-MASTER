@@ -1,8 +1,9 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, Put } from '@nestjs/common';
 import { CommandeService } from './commande.service';
 import { CreateCommandeDto } from './dto/create-commande.dto';
 import { UpdateCommandeDto } from './dto/update-commande.dto';
 import { UpdateCommandeMenuStatusDto } from './dto/update-commande-menu-status.dto';
+import { UpdateCommandeMenusDto } from './dto/update-commande-menus.dto';
 
 @Controller('commande')
 export class CommandeController {
@@ -23,7 +24,7 @@ export class CommandeController {
     return this.commandeService.findOne(+id);
   }
 
-  @Patch(':id')
+  @Put(':id')
   update(@Param('id') id: string, @Body() updateCommandeDto: UpdateCommandeDto) {
     return this.commandeService.update(+id, updateCommandeDto);
   }
@@ -47,5 +48,13 @@ export class CommandeController {
       commandeId,
       dto
     );
+  }
+
+  @Put(':id/menus')
+  async updateCommandeMenus(
+    @Param('id') id: string,
+    @Body() dto: UpdateCommandeMenusDto
+  ) {
+    return this.commandeService.updateCommandeMenus(+id, dto.menuIds, dto.quantities);
   }
 }
