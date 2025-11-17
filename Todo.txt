@@ -1,0 +1,2 @@
+- Verifier l'affichge des stattus dans le mobile 
+- Affichage des commandes dans la partie admin 

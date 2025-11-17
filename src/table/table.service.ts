@@ -14,6 +14,13 @@ export class TableService {
   ) { }
 
   async create(createTableDto: CreateTableDto) {
+    //verification  doubloun de nom 
+    const existingTable = await this.tableRepo.findOneBy({ numero_table: createTableDto.numero_table });
+
+    if (existingTable) {
+      throw new NotFoundException('Une table avec ce numéro existe déjà.');
+    }
+
     const data = this.tableRepo.create(createTableDto)
     await this.tableRepo.save(data)
 

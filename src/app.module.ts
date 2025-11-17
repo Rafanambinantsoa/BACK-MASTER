@@ -19,6 +19,7 @@ import { ReservationMenuModule } from './reservation-menu/reservation-menu.modul
 import { PaimentReservationTableModule } from './paiment-reservation-table/paiment-reservation-table.module';
 import { CommandeModule } from './commande/commande.module';
 import { CommandeMenuModule } from './commande-menu/commande-menu.module';
+import { TasksModule } from './crons/crons.module';
 
 @Module({
   imports: [
@@ -37,6 +38,7 @@ import { CommandeMenuModule } from './commande-menu/commande-menu.module';
       autoLoadEntities: true,
       synchronize: true, // ⚠️ à désactiver en production
     }),
+    TasksModule,
     UserModule,
     RoleModule,
     AuthModule,
