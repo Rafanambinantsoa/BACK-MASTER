@@ -14,7 +14,7 @@ export class CommandeMenu {
     @Column({ nullable: true })
     menuId: number
 
-    @Column({ default: 'en_cours' })
+    @Column({ default: 'en_atttente' })
     status: string;
 
     @ManyToOne(() => Commande, (commande) => commande.commandeMenu)

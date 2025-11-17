@@ -38,3 +38,293 @@ Logs Activity
 
 
 +- Component date ,  DECONNEXION ,  NAV BAR COULEUR COMPACT  ,
+
+
+
+je veus que tu me creer une service qui servira a  afficher la liste de tout les commandeMenu  ,  l'api a comme endpoint  :  commande-menu    ,  elle retourne  ceci  [
+    {
+        "id": 1,
+        "commande_id": 12,
+        "menuId": 1,
+        "status": "en_attente",
+        "commande": {
+            "id": 12,
+            "reference": "COM-12",
+            "reservation_id": 12,
+            "reservation": {
+                "id": 12,
+                "client_id": 12,
+                "date": "2025-11-16T21:00:00.000Z",
+                "heure_debut": "15:30",
+                "heure_fin": "18:00",
+                "status": "en_attente",
+                "type_reservation": "table",
+                "reservationTables": [
+                    {
+                        "id": 1
+                    }
+                ],
+                "reservationMenus": []
+            },
+            "commandeMenu": [
+                {
+                    "id": 1,
+                    "commande_id": 12,
+                    "menuId": 1,
+                    "status": "en_attente",
+                    "quantity": 2
+                }
+            ],
+            "date_commande": "2025-11-17T12:30:00.000Z",
+            "status": "en_cours",
+            "total_price": 6000
+        },
+        "menu": {
+            "id": 1,
+            "nom": "Tacos",
+            "description": "sdsds",
+            "statut": false,
+            "image": "1763223471453-999831752.png",
+            "prix": "3000.00",
+            "type_menu_id": 1,
+            "type_menu": {
+                "id": 1,
+                "nom": "Froid"
+            },
+            "reservationMenus": [],
+            "commandeMenus": [
+                {
+                    "id": 1,
+                    "commande_id": 12,
+                    "menuId": 1,
+                    "status": "en_attente",
+                    "quantity": 2
+                },
+                {
+                    "id": 3,
+                    "commande_id": 13,
+                    "menuId": 1,
+                    "status": "en_attente",
+                    "quantity": 1
+                }
+            ]
+        },
+        "quantity": 2
+    },
+    {
+        "id": 3,
+        "commande_id": 13,
+        "menuId": 1,
+        "status": "en_attente",
+        "commande": {
+            "id": 13,
+            "reference": "COM-13",
+            "reservation_id": 13,
+            "reservation": {
+                "id": 13,
+                "client_id": 13,
+                "date": "2025-11-16T21:00:00.000Z",
+                "heure_debut": "15:30",
+                "heure_fin": "18:00",
+                "status": "en_attente",
+                "type_reservation": "table",
+                "reservationTables": [
+                    {
+                        "id": 2
+                    }
+                ],
+                "reservationMenus": []
+            },
+            "commandeMenu": [
+                {
+                    "id": 3,
+                    "commande_id": 13,
+                    "menuId": 1,
+                    "status": "en_attente",
+                    "quantity": 1
+                },
+                {
+                    "id": 4,
+                    "commande_id": 13,
+                    "menuId": 2,
+                    "status": "en_attente",
+                    "quantity": 2
+                }
+            ],
+            "date_commande": "2025-11-17T12:30:00.000Z",
+            "status": "en_cours",
+            "total_price": 9000
+        },
+        "menu": {
+            "id": 1,
+            "nom": "Tacos",
+            "description": "sdsds",
+            "statut": false,
+            "image": "1763223471453-999831752.png",
+            "prix": "3000.00",
+            "type_menu_id": 1,
+            "type_menu": {
+                "id": 1,
+                "nom": "Froid"
+            },
+            "reservationMenus": [],
+            "commandeMenus": [
+                {
+                    "id": 1,
+                    "commande_id": 12,
+                    "menuId": 1,
+                    "status": "en_attente",
+                    "quantity": 2
+                },
+                {
+                    "id": 3,
+                    "commande_id": 13,
+                    "menuId": 1,
+                    "status": "en_attente",
+                    "quantity": 1
+                }
+            ]
+        },
+        "quantity": 1
+    },
+    {
+        "id": 4,
+        "commande_id": 13,
+        "menuId": 2,
+        "status": "en_attente",
+        "commande": {
+            "id": 13,
+            "reference": "COM-13",
+            "reservation_id": 13,
+            "reservation": {
+                "id": 13,
+                "client_id": 13,
+                "date": "2025-11-16T21:00:00.000Z",
+                "heure_debut": "15:30",
+                "heure_fin": "18:00",
+                "status": "en_attente",
+                "type_reservation": "table",
+                "reservationTables": [
+                    {
+                        "id": 2
+                    }
+                ],
+                "reservationMenus": []
+            },
+            "commandeMenu": [
+                {
+                    "id": 3,
+                    "commande_id": 13,
+                    "menuId": 1,
+                    "status": "en_attente",
+                    "quantity": 1
+                },
+                {
+                    "id": 4,
+                    "commande_id": 13,
+                    "menuId": 2,
+                    "status": "en_attente",
+                    "quantity": 2
+                }
+            ],
+            "date_commande": "2025-11-17T12:30:00.000Z",
+            "status": "en_cours",
+            "total_price": 9000
+        },
+        "menu": {
+            "id": 2,
+            "nom": "Burger",
+            "description": "sdsds",
+            "statut": false,
+            "image": "1763223482905-327074687.png",
+            "prix": "3000.00",
+            "type_menu_id": 1,
+            "type_menu": {
+                "id": 1,
+                "nom": "Froid"
+            },
+            "reservationMenus": [],
+            "commandeMenus": [
+                {
+                    "id": 4,
+                    "commande_id": 13,
+                    "menuId": 2,
+                    "status": "en_attente",
+                    "quantity": 2
+                }
+            ]
+        },
+        "quantity": 2
+    }
+]   et  pour le par id  :  {
+    "id": 1,
+    "commande_id": 12,
+    "menuId": 1,
+    "status": "en_attente",
+    "commande": {
+        "id": 12,
+        "reference": "COM-12",
+        "reservation_id": 12,
+        "reservation": {
+            "id": 12,
+            "client_id": 12,
+            "date": "2025-11-16T21:00:00.000Z",
+            "heure_debut": "15:30",
+            "heure_fin": "18:00",
+            "status": "en_attente",
+            "type_reservation": "table",
+            "reservationTables": [
+                {
+                    "id": 1
+                }
+            ],
+            "reservationMenus": []
+        },
+        "commandeMenu": [
+            {
+                "id": 1,
+                "commande_id": 12,
+                "menuId": 1,
+                "status": "en_attente",
+                "quantity": 2
+            }
+        ],
+        "date_commande": "2025-11-17T12:30:00.000Z",
+        "status": "en_cours",
+        "total_price": 6000
+    },
+    "menu": {
+        "id": 1,
+        "nom": "Tacos",
+        "description": "sdsds",
+        "statut": false,
+        "image": "1763223471453-999831752.png",
+        "prix": "3000.00",
+        "type_menu_id": 1,
+        "type_menu": {
+            "id": 1,
+            "nom": "Froid"
+        },
+        "reservationMenus": [],
+        "commandeMenus": [
+            {
+                "id": 1,
+                "commande_id": 12,
+                "menuId": 1,
+                "status": "en_attente",
+                "quantity": 2
+            },
+            {
+                "id": 3,
+                "commande_id": 13,
+                "menuId": 1,
+                "status": "en_attente",
+                "quantity": 1
+            }
+        ]
+    },
+    "quantity": 2
+}   creer  la service  pour ca et  dynamise  :  @plats-page.tsx    ,   pour le design tu le garde mais tu enleve juste Temps écoulé: 10 min
+Temps restant: 15 min    et  pour cette statut :  En préparation
+      tu le fais en  En cours  ,  tu enleve aussi  Temps estimé:25 min
+    ahh  oui pagine par  5   

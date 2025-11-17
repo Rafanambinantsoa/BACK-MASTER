@@ -427,6 +427,7 @@ export class CommandeService {
             commande_id: commandeId,
             menuId,
             quantity,
+            status: "en_attente"
           });
           toSave.push(cm);
         }
