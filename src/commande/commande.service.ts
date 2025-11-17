@@ -342,26 +342,39 @@ export class CommandeService {
   }
 
   //Mettre a jour la statut d'une des commande   genre un des  menus ou plusieur  
-  async udpateCommandeMenuStatus(commandeId: number, updateCommandeMenuStatus: UpdateCommandeMenuStatusDto) {
-    const commande = await this.commandeRepo.findOne({ where: { id: commandeId } });
-    if (commande === null) {
+  async updateCommandeMenuStatus(
+    commandeId: number,
+    dto: UpdateCommandeMenuStatusDto,
+  ) {
+    const commande = await this.commandeRepo.findOne({
+      where: { id: commandeId }
+    });
+
+    if (!commande) {
       throw new NotFoundException('Commande introuvable');
     }
 
-    const commandeMenu = await this.commandeMenuRepo.findOne({ where: { commande_id: commandeId, menuId: updateCommandeMenuStatus.menuId } });
-    if (commandeMenu === null) {
+    const commandeMenu = await this.commandeMenuRepo.findOne({
+      where: {
+        commande: { id: commandeId },
+        menu: { id: dto.menuId },
+      },
+    });
+
+    if (!commandeMenu) {
       throw new NotFoundException('Menu de la commande introuvable');
     }
 
-    // Mettre à jour le statut du menu dans la commande
-    commandeMenu['status'] = updateCommandeMenuStatus.status; // Assurez-vous que la colonne 'status' existe dans l'entité CommandeMenu
+    commandeMenu.status = dto.status;
+
     await this.commandeMenuRepo.save(commandeMenu);
 
     return {
-      message: 'Statut du menu dans la commande mis à jour avec succès',
+      message: 'Statut du menu mis à jour avec succès',
       commandeMenu,
     };
   }
+
 
   // Mettre à jour uniquement les menus et quantités d'une commande
   async updateCommandeMenus(commandeId: number, menuIds: number[], quantities: number[]) {

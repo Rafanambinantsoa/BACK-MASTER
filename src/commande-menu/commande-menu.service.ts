@@ -26,8 +26,9 @@ export class CommandeMenuService {
     return await this.cM.findOne({ where: { id }, relations: ['menu', 'commande.reservation'] });
   }
 
-  update(id: number, updateCommandeMenuDto: UpdateCommandeMenuDto) {
-    return `This action updates a #${id} commandeMenu`;
+  async update(id: number, updateCommandeMenuDto: UpdateCommandeMenuDto) {
+    await this.cM.update(id, updateCommandeMenuDto);
+    return this.cM.findOne({ where: { id } });
   }
 
   remove(id: number) {

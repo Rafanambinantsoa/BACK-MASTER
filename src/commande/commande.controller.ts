@@ -44,7 +44,7 @@ export class CommandeController {
     @Param('commandeId') commandeId: number,
     @Body() dto: UpdateCommandeMenuStatusDto
   ) {
-    return this.commandeService.udpateCommandeMenuStatus(
+    return this.commandeService.updateCommandeMenuStatus(
       commandeId,
       dto
     );
