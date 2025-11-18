@@ -32,7 +32,6 @@ export class TasksService {
                 (cm) => cm.status === 'terminer',
             );
 
-            // 3️⃣ Si oui → mise à jour du statut de la commande
             if (tousTermines) {
                 commande.status = 'terminer';
                 await this.commandeRepo.save(commande);
