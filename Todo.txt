@@ -1,2 +1,7 @@
 - Verifier l'affichge des stattus dans le mobile 
 - Affichage des commandes dans la partie admin 
+
+
+export GOOGLE_API_KEY="AIzaSyD9HtVplqbCG_nVROt1xedz6YO0o1UICwc"
+
+AIzaSyD9HtVplqbCG_nVROt1xedz6YO0o1UICwc
