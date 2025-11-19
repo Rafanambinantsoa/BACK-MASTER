@@ -23,13 +23,13 @@ export class PaimentCommandeService {
     //Verfier si la commande existe
     const commande = await this.commandRep.findOneBy({ id: commande_id });
     if (!commande) {
-      throw new NotFoundException("La commande associée au paiement n'existe pas");
+      return { message: "La commande associée au paiement n'existe pas" };
     }
 
     // Vérifier si la commande a déjà un paiement
     const match = await this.paiementCommandeRepository.findOneBy({ commande_id });
     if (match) {
-      throw new ForbiddenException("La commande en question est déjà traitée");
+      return { message: "La commande en question est déjà traitée" };
     }
 
     // Règle : référence obligatoire pour mobile_money
@@ -44,6 +44,10 @@ export class PaimentCommandeService {
       ...createPaimentCommandeDto,
       slugcommandId,
     });
+
+    //Mise a  jour du status de la commande
+    commande.status = "payer";
+    await this.commandRep.save(commande);
 
     return { message: "Commande encaissée avec succès", data };
   }
