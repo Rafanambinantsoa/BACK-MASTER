@@ -6,8 +6,6 @@ import { Repository } from 'typeorm';
 
 @Injectable()
 export class TasksService {
-
-
     private readonly logger = new Logger(TasksService.name);
 
     constructor(

@@ -20,6 +20,7 @@ import { PaimentReservationTableModule } from './paiment-reservation-table/paime
 import { CommandeModule } from './commande/commande.module';
 import { CommandeMenuModule } from './commande-menu/commande-menu.module';
 import { TasksModule } from './crons/crons.module';
+import { PaimentCommandeModule } from './paiment-commande/paiment-commande.module';
 
 @Module({
   imports: [
@@ -53,6 +54,7 @@ import { TasksModule } from './crons/crons.module';
     PaimentReservationTableModule,
     CommandeModule,
     CommandeMenuModule,
+    PaimentCommandeModule,
   ],
   controllers: [AppController],
   providers: [AppService],

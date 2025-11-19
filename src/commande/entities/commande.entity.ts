@@ -1,4 +1,5 @@
 import { CommandeMenu } from "src/commande-menu/entities/commande-menu.entity";
+import { PaimentCommande } from "src/paiment-commande/entities/paiment-commande.entity";
 import { Reservation } from "src/reservation/entities/reservation.entity";
 import { AfterInsert, Column, Entity, getRepository, JoinColumn, ManyToOne, OneToMany, PrimaryGeneratedColumn } from "typeorm";
 
@@ -30,5 +31,8 @@ export class Commande {
 
     @Column({ default: 0 })
     total_price: number;
+
+    @OneToMany(() => PaimentCommande, (paimentCommande) => paimentCommande.commande)
+    paimentCommandes: PaimentCommande[];
 
 }
