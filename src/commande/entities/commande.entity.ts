@@ -1,4 +1,5 @@
 import { CommandeMenu } from "src/commande-menu/entities/commande-menu.entity";
+import { PaiementPret } from "src/paiement-pret/entities/paiement-pret.entity";
 import { PaimentCommande } from "src/paiment-commande/entities/paiment-commande.entity";
 import { Reservation } from "src/reservation/entities/reservation.entity";
 import { AfterInsert, Column, Entity, getRepository, JoinColumn, ManyToOne, OneToMany, PrimaryGeneratedColumn } from "typeorm";
@@ -34,5 +35,9 @@ export class Commande {
 
     @OneToMany(() => PaimentCommande, (paimentCommande) => paimentCommande.commande)
     paimentCommandes: PaimentCommande[];
+
+    //Par rapport au pret 
+    @OneToMany(() => PaiementPret, (paiementPret) => paiementPret.commande)
+    paiementPrets: PaiementPret[];
 
 }

@@ -21,6 +21,8 @@ import { CommandeModule } from './commande/commande.module';
 import { CommandeMenuModule } from './commande-menu/commande-menu.module';
 import { TasksModule } from './crons/crons.module';
 import { PaimentCommandeModule } from './paiment-commande/paiment-commande.module';
+import { PaiementPretModule } from './paiement-pret/paiement-pret.module';
+import { PaimentResteModule } from './paiment-reste/paiment-reste.module';
 
 @Module({
   imports: [
@@ -55,6 +57,8 @@ import { PaimentCommandeModule } from './paiment-commande/paiment-commande.modul
     CommandeModule,
     CommandeMenuModule,
     PaimentCommandeModule,
+    PaiementPretModule,
+    PaimentResteModule,
   ],
   controllers: [AppController],
   providers: [AppService],
