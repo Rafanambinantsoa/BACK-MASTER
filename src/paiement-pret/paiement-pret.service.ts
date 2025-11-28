@@ -60,6 +60,11 @@ export class PaiementPretService {
       await this.paiementResteRepository.save(paiementReste);
     }
 
+    //Me a  jour la staut de la commande 
+    await this.commandeRepository.update(dto.commandeId, { status: 'pret' });
+
+
+
     return data;
   }
 
