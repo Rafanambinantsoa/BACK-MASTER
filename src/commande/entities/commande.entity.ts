@@ -37,7 +37,7 @@ export class Commande {
     paimentCommandes: PaimentCommande[];
 
     //Par rapport au pret 
-    @OneToMany(() => PaiementPret, (paiementPret) => paiementPret.commande)
+    @OneToMany(() => PaiementPret, (paiementPret) => paiementPret.commandeId)
     paiementPrets: PaiementPret[];
 
 }

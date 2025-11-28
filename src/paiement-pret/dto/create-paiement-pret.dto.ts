@@ -1,3 +1,4 @@
+// create-paiement-pret.dto.ts
 import { IsNotEmpty, IsOptional } from "class-validator";
 
 export class CreatePaiementPretDto {
@@ -5,14 +6,14 @@ export class CreatePaiementPretDto {
     commandeId: number;
 
     @IsNotEmpty()
-    montantTotal: number
+    montantTotal: number;
 
     @IsOptional()
     montantAvance: number;
 
     @IsOptional()
-    reference: string;
+    modePaiement: string;
 
-    @IsNotEmpty()
-    typePaiement: string;
+    @IsOptional()
+    reference: string;
 }

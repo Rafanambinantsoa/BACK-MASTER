@@ -1,15 +1,15 @@
 import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
 import { PaimentResteService } from './paiment-reste.service';
-import { CreatePaimentResteDto } from './dto/create-paiment-reste.dto';
 import { UpdatePaimentResteDto } from './dto/update-paiment-reste.dto';
+import { CreatePaiementResteDto } from './dto/create-paiment-reste.dto';
 
 @Controller('paiment-reste')
 export class PaimentResteController {
-  constructor(private readonly paimentResteService: PaimentResteService) {}
+  constructor(private readonly paimentResteService: PaimentResteService) { }
 
   @Post()
-  create(@Body() createPaimentResteDto: CreatePaimentResteDto) {
-    return this.paimentResteService.create(createPaimentResteDto);
+  create(@Body() createPaiementResteDto: CreatePaiementResteDto) {
+    return this.paimentResteService.create(createPaiementResteDto);
   }
 
   @Get()

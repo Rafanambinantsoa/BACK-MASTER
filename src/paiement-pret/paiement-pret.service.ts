@@ -5,6 +5,8 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { PaiementPret } from './entities/paiement-pret.entity';
 import { Repository } from 'typeorm';
 import { Commande } from 'src/commande/entities/commande.entity';
+import { CreatePaiementResteDto } from 'src/paiment-reste/dto/create-paiment-reste.dto';
+import { PaiementReste } from 'src/paiment-reste/entities/paiment-reste.entity';
 
 @Injectable()
 export class PaiementPretService {
@@ -15,78 +17,112 @@ export class PaiementPretService {
 
     @InjectRepository(Commande)
     private commandeRepository: Repository<Commande>,
+
+    @InjectRepository(PaiementReste)
+    private paiementResteRepository: Repository<PaiementReste>,
   ) { }
 
-  async create(createPaiementPretDto: CreatePaiementPretDto) {
-    //verification  de  l'existence de la commande associée peut être ajoutée ici
-    const test = await this.commandeRepository.findOneBy({ id: createPaiementPretDto.commandeId });
-    if (!test) {
-      throw new NotFoundException('Commande associée non trouvée');
+
+  // Création du paiement initial
+  // -----------------------
+  async createPaiementPret(dto: CreatePaiementPretDto) {
+    const existing = await this.paiementPretRepository.findOneBy({ commandeId: dto.commandeId });
+    if (existing) throw new BadRequestException('Paiement initial déjà enregistré');
+    // if modePaiment is mobile money reference must be provided
+    if (dto.modePaiement === "mobile_money") {
+      if (!dto.reference) {
+        throw new BadRequestException('La référence est obligatoire pour le paiement mobile money');
+      }
     }
 
-    //verification si la commande est deja  present dans paiementPret
-    const existingPaiement = await this.paiementPretRepository.findOneBy({ commandeId: createPaiementPretDto.commandeId });
-    if (existingPaiement) {
-      throw new Error('Un paiement pour cette commande existe déjà');
+    if (!dto.montantAvance) dto.montantAvance = 0;
+    const reste = dto.montantTotal - dto.montantAvance;
+    const estRegle = reste <= 0;
+
+    const paiement = this.paiementPretRepository.create({
+      commandeId: dto.commandeId,
+      montantTotal: dto.montantTotal,
+      montantAvance: dto.montantAvance,
+      estRegle: estRegle,
+      reste_a_regler: reste,
+    });
+
+    const data = await this.paiementPretRepository.save(paiement);
+
+    // pret 
+    if (dto.montantAvance > 0) {
+      const paiementReste = this.paiementResteRepository.create({
+        paiementPret: data,
+        montant: dto.montantAvance,
+        modePaiement: dto.modePaiement,
+        reference: dto.reference ?? null,
+      });
+      await this.paiementResteRepository.save(paiementReste);
     }
 
-    //On change  le statut du commande en pret
-    test.status = 'pret';
-    await this.commandeRepository.save(test);
-
-    //if montantAvance est null ou undefined, on le considère comme 0
-    if (!createPaiementPretDto.montantAvance) {
-      createPaiementPretDto.montantAvance = 0;
-    }
-    const resteARegler = createPaiementPretDto.montantTotal - (createPaiementPretDto.montantAvance || 0); createPaiementPretDto['resteARegler'] = resteARegler;
-
-    const data = this.paiementPretRepository.create(createPaiementPretDto);
-    return this.paiementPretRepository.save(data);
+    return data;
   }
 
+  // -----------------------
+  // Création d’un paiement du reste
+  // -----------------------
+  async createPaiementReste(dto: CreatePaiementResteDto, id: number) {
+    const paiementPret = await this.paiementPretRepository.findOne({
+      where: { id },
+      relations: ['paiementsReste'], // tu peux garder
+    });
+
+    if (!paiementPret) throw new NotFoundException('Paiement initial non trouvé');
+
+    if (paiementPret.estRegle) {
+      throw new BadRequestException('Le paiement est déjà réglé');
+    }
+
+    if (dto.montantPaye > paiementPret.reste_a_regler) {
+      throw new BadRequestException('Le montant payé dépasse le reste à régler');
+    }
+
+    if (dto.modePaiement === "mobile_money" && !dto.reference) {
+      throw new BadRequestException('La référence est obligatoire pour le paiement mobile money');
+    }
+
+    // 1) Création du paiement enfant
+    const paiementReste = this.paiementResteRepository.create({
+      paiementPret: { id } as any,   // ✅ référence locale, pas l'objet mémoire
+      montant: dto.montantPaye,
+      modePaiement: dto.modePaiement,
+      reference: dto.reference ?? null,
+    });
+
+    const check = await this.paiementResteRepository.save(paiementReste);
+
+    // 2) Mise à jour SANS toucher aux relations
+    const nouveauReste = paiementPret.reste_a_regler - dto.montantPaye;
+    const estRegle = nouveauReste <= 0;
+
+    await this.paiementPretRepository.update(id, {
+      reste_a_regler: estRegle ? 0 : nouveauReste,
+      estRegle,
+    });
+
+    return check;
+  }
+
+
+  // Obtenir la liste des prets 
   async findAll() {
-    return await this.paiementPretRepository.find({ relations: ['commande.reservation.client'] });
+    return this.paiementPretRepository.find({ relations: ['paiementsReste', 'commande'] });
   }
 
-
+  // Obtenir un pret par son id
   async findOne(id: number) {
     const data = await this.paiementPretRepository.findOne({
       where: { id },
-      relations: ['commande.reservation.client'],
+      relations: ['paiementsReste', 'commande'],
     });
 
-    if (!data) {
-      throw new Error('PaiementPret non trouvé');
-    }
+    if (!data) throw new NotFoundException('Paiement initial non trouvé');
     return data;
   }
-  async update(id: number, updatePaiementPretDto: UpdatePaiementPretDto) {
-    const paiementPret = await this.paiementPretRepository.findOneBy({ id });
-    if (!paiementPret) {
-      throw new NotFoundException('PaiementPret non trouvé');
-    }
 
-    // montant total déjà payé
-    const montantAvanceActuel = paiementPret.montantTotal - (paiementPret.resteARegler ?? paiementPret.montantTotal);
-
-    // nouveau total payé
-    const nouveauMontantAvance = montantAvanceActuel + updatePaiementPretDto.montantAvance;
-
-    if (nouveauMontantAvance > paiementPret.montantTotal) {
-      throw new BadRequestException("Le montant avancé dépasse le montant total.");
-    }
-
-    // nouveau reste
-    const nouveauResteARegler = paiementPret.montantTotal - nouveauMontantAvance;
-
-    paiementPret.resteARegler = nouveauResteARegler;
-    paiementPret.estRegle = nouveauResteARegler === 0;
-
-    return this.paiementPretRepository.save(paiementPret);
-  }
-
-
-  remove(id: number) {
-    return `This action removes a #${id} paiementPret`;
-  }
 }

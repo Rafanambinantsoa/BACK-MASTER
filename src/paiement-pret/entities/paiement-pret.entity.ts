@@ -1,6 +1,7 @@
 // paiement-pret.entity.ts
-import { Column, Entity, OneToMany, PrimaryGeneratedColumn } from "typeorm";
-import { PaiementReste } from "./paiement-reste.entity";
+import { Commande } from "src/commande/entities/commande.entity";
+import { PaiementReste } from "src/paiment-reste/entities/paiment-reste.entity";
+import { Column, Entity, JoinColumn, ManyToOne, OneToMany, PrimaryGeneratedColumn } from "typeorm";
 
 @Entity()
 export class PaiementPret {
@@ -19,9 +20,13 @@ export class PaiementPret {
     @Column({ default: false })
     estRegle: boolean;
 
-    @Column()
-    typePaiement: string; // ex: "initial"
+    @Column("decimal", { precision: 10, scale: 2 })
+    reste_a_regler: number;
 
-    @OneToMany(() => PaiementReste, (paiementReste) => paiementReste.paiementPret)
+    @OneToMany(() => PaiementReste, (paiementReste) => paiementReste.paiementPret, { nullable: false })
     paiementsReste: PaiementReste[];
+
+    @ManyToOne(() => Commande, (commande) => commande.paiementPrets, { eager: true })
+    @JoinColumn({ name: 'commandeId' }) // précise la colonne FK
+    commande: Commande;
 }
