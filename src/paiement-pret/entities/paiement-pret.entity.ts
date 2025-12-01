@@ -29,4 +29,7 @@ export class PaiementPret {
     @ManyToOne(() => Commande, (commande) => commande.paiementPrets, { eager: true })
     @JoinColumn({ name: 'commandeId' }) // précise la colonne FK
     commande: Commande;
+
+    @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
+    createdAt: Date;
 }

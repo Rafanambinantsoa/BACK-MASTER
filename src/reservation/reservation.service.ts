@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, In, DataSource } from 'typeorm';
+import { Repository, In, DataSource, Between } from 'typeorm';
 import { Reservation } from './entities/reservation.entity';
 import { Table } from 'src/table/entities/table.entity';
 import { CreateReservationDto } from './dto/create-reservation.dto';
@@ -446,7 +446,20 @@ export class ReservationService {
     return { date, heureDebut, heureFin, disponibles, total: disponibles.length };
   }
 
+  // nombre de reservations cree ajourd'hui
+  async countTodayReservations() {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
 
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
 
+    const count = await this.reservationRepository.count({
+      where: {
+        createdAt: Between(today, tomorrow),
+      },
+    });
 
+    return { count };
+  }
 }

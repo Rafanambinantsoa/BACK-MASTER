@@ -43,4 +43,7 @@ export class Reservation {
 
     @OneToMany(() => Commande, (commande) => commande.reservation)
     commandes: Commande[];
+
+    @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
+    createdAt: Date;
 }

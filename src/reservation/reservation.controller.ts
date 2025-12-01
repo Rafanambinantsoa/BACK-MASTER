@@ -45,4 +45,10 @@ export class ReservationController {
     return await this.reservationService.findTablesDisponibles(dispoDto);
   }
 
+  @UseGuards(JwtAuthGuard)
+  @Get('count/today')
+  async countToday() {
+    return await this.reservationService.countTodayReservations();
+  }
+
 }

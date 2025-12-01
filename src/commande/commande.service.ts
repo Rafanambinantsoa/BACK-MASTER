@@ -11,6 +11,7 @@ import { Menu } from 'src/menu/entities/menu.entity';
 import { Table } from 'src/table/entities/table.entity';
 import { ReservationTable } from 'src/reservation-table/entities/reservation-table.entity';
 import { UpdateCommandeMenuStatusDto } from './dto/update-commande-menu-status.dto';
+import { PaiementPret } from 'src/paiement-pret/entities/paiement-pret.entity';
 
 @Injectable()
 export class CommandeService {
@@ -38,6 +39,9 @@ export class CommandeService {
 
     @InjectRepository(ReservationTable)
     private reservationTableRepository: Repository<ReservationTable>,
+
+    @InjectRepository(PaiementPret)
+    private paiementPretRepository: Repository<PaiementPret>,
   ) { }
 
   async create(dto: CreateCommandeDto) {
@@ -493,6 +497,57 @@ export class CommandeService {
 
     return { commandesTodayCount: count };
   }
+
+  //nombre des commande en_cours et payer
+  async countCommandesByStatus() {
+    const enCoursCount = await this.commandeRepo.count({ where: { status: 'en_cours' } });
+    const payerCount = await this.commandeRepo.count({ where: { status: 'payer' } });
+
+    return {
+      en_cours: enCoursCount,
+      payer: payerCount,
+    };
+  }
+
+  async totalPaiementToday() {
+    const today = new Date();
+    const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    const endOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1);
+
+    // Total from paiementCommande
+    const total = await this.commandeRepo
+      .createQueryBuilder('commande')
+      .leftJoin('commande.paimentCommandes', 'paiementCommande')
+      .where('commande.date_commande >= :startOfDay AND commande.date_commande < :endOfDay', { startOfDay, endOfDay })
+      .select('COALESCE(SUM(paiementCommande.montant), 0)', 'totalPaiement')
+      .getRawOne();
+
+    // Total from paiementPret
+    const totalAvance = await this.paiementPretRepository
+      .createQueryBuilder('paiementPret')
+      .where('paiementPret.createdAt >= :startOfDay AND paiementPret.createdAt < :endOfDay', { startOfDay, endOfDay })
+      .select('COALESCE(SUM(paiementPret.montantAvance), 0)', 'totalAvance')
+      .getRawOne();
+
+    const totalPaiementToday =
+      parseFloat(total.totalPaiement) +
+      parseFloat(totalAvance.totalAvance);
+
+    return { totalPaiementToday };
+  }
+
+
+  async totalPret() {
+    //somme total reste_a_regler dans paiementPret
+    const totalPret = await this.paiementPretRepository
+      .createQueryBuilder('paiementPret')
+      .select('SUM(paiementPret.reste_a_regler)', 'totalPret')
+      .getRawOne();
+
+    return { totalPret: parseFloat(totalPret.totalPret) };
+  }
+
+
 
 
 }

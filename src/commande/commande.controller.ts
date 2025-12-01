@@ -4,6 +4,7 @@ import { CreateCommandeDto } from './dto/create-commande.dto';
 import { UpdateCommandeDto } from './dto/update-commande.dto';
 import { UpdateCommandeMenuStatusDto } from './dto/update-commande-menu-status.dto';
 import { UpdateCommandeMenusDto } from './dto/update-commande-menus.dto';
+import { get } from 'http';
 
 @Controller('commande')
 export class CommandeController {
@@ -61,5 +62,20 @@ export class CommandeController {
   @Get('count/today')
   countCommandesToday() {
     return this.commandeService.countCommandesToDay();
+  }
+
+  @Get('count/status')
+  countCommandesByStatus() {
+    return this.commandeService.countCommandesByStatus();
+  }
+
+  @Get('total/pret')
+  totalPret() {
+    return this.commandeService.totalPret();
+  }
+
+  @Get('total/cash/today')
+  totalCashToday() {
+    return this.commandeService.totalPaiementToday();
   }
 }

@@ -9,9 +9,10 @@ import { CommandeMenu } from 'src/commande-menu/entities/commande-menu.entity';
 import { Client } from 'src/client/entities/client.entity';
 import { Table } from 'src/table/entities/table.entity';
 import { ReservationTable } from 'src/reservation-table/entities/reservation-table.entity';
+import { PaiementPret } from 'src/paiement-pret/entities/paiement-pret.entity';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Commande, Reservation, Menu, CommandeMenu, Client, Table, ReservationTable])],
+  imports: [TypeOrmModule.forFeature([Commande, Reservation, Menu, CommandeMenu, Client, Table, ReservationTable, PaiementPret])],
   controllers: [CommandeController],
   providers: [CommandeService],
 })
