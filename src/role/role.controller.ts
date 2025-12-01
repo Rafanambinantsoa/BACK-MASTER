@@ -38,4 +38,15 @@ export class RoleController {
   remove(@Param('id') id: string) {
     return this.roleService.remove(+id);
   }
+
+  @Post('seeds')
+  seedRoles() {
+    return this.roleService.seedRoles();
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('count/total')
+  countRoles() {
+    return this.roleService.countRoles();
+  }
 }

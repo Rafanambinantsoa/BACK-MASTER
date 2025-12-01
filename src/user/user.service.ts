@@ -175,4 +175,10 @@ export class UserService {
     await this.userRepository.delete(id);
     return { message: `User with id ${id} deleted` };
   }
+
+  //nombre de user actifs 
+  async countActiveUsers() {
+    const count = await this.userRepository.countBy({ statut: true });
+    return { activeUserCount: count };
+  }
 }

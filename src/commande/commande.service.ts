@@ -480,5 +480,19 @@ export class CommandeService {
     }
   }
 
+  async countCommandesToDay() {
+    const today = new Date();
+    const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    const endOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1);
+
+    const count = await this.commandeRepo.count({
+      where: {
+        date_commande: In([startOfDay, endOfDay]),
+      },
+    });
+
+    return { commandesTodayCount: count };
+  }
+
 
 }

@@ -18,6 +18,11 @@ export class RoleService {
   ) { }
 
   async create(createRoleDto: CreateRoleDto) {
+    //verification  doublon de nom
+    const existingRole = await this.roleRepository.findOneBy({ nom: createRoleDto.nom });
+    if (existingRole) {
+      throw new Error('Role with this name already exists');
+    }
     const role = await this.roleRepository.create(createRoleDto);
     return this.roleRepository.save(role);
   }
@@ -43,9 +48,22 @@ export class RoleService {
     if (!role) {
       throw new NotFoundException(`Role with ID ${id} not found`);
     }
+
+    // Vérification de doublon par nom
+    if (updateRoleDto.nom) {
+      const existingRole = await this.roleRepository.findOne({
+        where: { nom: updateRoleDto.nom },
+      });
+
+      if (existingRole && existingRole.id !== id) {
+        throw new NotFoundException(`Le nom du rôle "${updateRoleDto.nom}" est déjà utilisé.`);
+      }
+    }
+
     await this.roleRepository.merge(role, updateRoleDto);
     return this.roleRepository.save(role);
   }
+
 
   async remove(id: number) {
     const role = await this.roleRepository.findOneBy({ id });
@@ -63,5 +81,30 @@ export class RoleService {
 
     return { message: `Role with ID ${id} deleted and users unlinked.` };
   }
+
+  async seedRoles() {
+    const roles: CreateRoleDto[] = [
+      { nom: 'Cuisinier', description: 'Prépare les plats', couleur: 'rouge' },
+      { nom: 'Serveur', description: 'Serve les clients', couleur: 'vert' },
+      { nom: 'Admin', description: 'Gestion complète du système', couleur: 'jaune' },
+      { nom: 'Caissier', description: 'Gère les paiements', couleur: 'violet' },
+    ];
+
+    for (const roleDto of roles) {
+      const existingRole = await this.roleRepository.findOneBy({ nom: roleDto.nom });
+      if (!existingRole) {
+        const role = this.roleRepository.create(roleDto);
+        await this.roleRepository.save(role);
+      }
+    }
+
+    return { message: 'Roles seeded successfully.' };
+  }
+
+  async countRoles() {
+    const count = await this.roleRepository.count();
+    return { roleCount: count };
+  }
+
 
 }

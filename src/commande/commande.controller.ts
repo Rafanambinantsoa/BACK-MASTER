@@ -57,4 +57,9 @@ export class CommandeController {
   ) {
     return this.commandeService.updateCommandeMenus(+id, dto.menuIds, dto.quantities);
   }
+
+  @Get('count/today')
+  countCommandesToday() {
+    return this.commandeService.countCommandesToDay();
+  }
 }
