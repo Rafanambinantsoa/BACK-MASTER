@@ -38,6 +38,7 @@ export class ReservationService {
     await queryRunner.connect();
     await queryRunner.startTransaction();
 
+    let code: string | undefined = undefined;
     try {
       const {
         tableIds,
@@ -92,6 +93,8 @@ export class ReservationService {
           throw new BadRequestException('Menus requis pour ce type de réservation');
         if (!menuQuantities || menuQuantities.length !== menuIds.length)
           throw new BadRequestException('Les quantités doivent correspondre aux menus.');
+
+        code = await this.generateUniqueReservationCode(queryRunner.manager);
       }
 
       const reservation = queryRunner.manager.create(Reservation, {
@@ -101,6 +104,7 @@ export class ReservationService {
         heure_debut,
         heure_fin,
         type_reservation,
+        code
       });
       const saved = await queryRunner.manager.save(Reservation, reservation);
 
@@ -137,6 +141,8 @@ export class ReservationService {
           });
           await queryRunner.manager.save(PaimentReservationTable, paiement);
         }
+
+
       }
 
       await queryRunner.commitTransaction();
@@ -157,6 +163,27 @@ export class ReservationService {
       await queryRunner.release();
     }
   }
+
+  //Generer  code unique  de la reservation
+  private async generateUniqueReservationCode(manager): Promise<string> {
+    let code: string;
+    let exists = true;
+
+    do {
+      const random = Math.floor(10000 + Math.random() * 90000); // 5 chiffres
+      code = `RES${random}`;
+
+      const found = await manager.findOne(Reservation, {
+        where: { code },
+        select: ['id'],
+      });
+
+      exists = !!found;
+    } while (exists);
+
+    return code;
+  }
+
 
   async update(id: number, dto: UpdateReservationDto) {
     const queryRunner = this.dataSource.createQueryRunner();
@@ -461,5 +488,21 @@ export class ReservationService {
     });
 
     return { count };
+  }
+
+  async findByCode(id) {
+    const data = await this.reservationRepository.findOne({
+      where: { code: id },
+      relations: [
+        'client',
+        'reservationTables',
+        'reservationTables.table',
+        'reservationMenus',
+        'reservationMenus.menu',
+        'paimentReservationTable',
+      ],
+    });
+    if (!data) throw new NotFoundException('Réservation introuvable');
+    return data;
   }
 }

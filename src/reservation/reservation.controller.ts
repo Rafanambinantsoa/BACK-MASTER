@@ -51,4 +51,10 @@ export class ReservationController {
     return await this.reservationService.countTodayReservations();
   }
 
+  @UseGuards(JwtAuthGuard)
+  @Get('search/code/:code')
+  async findByCode(@Param('code') code: string) {
+    return await this.reservationService.findByCode(code);
+  }
+
 }
