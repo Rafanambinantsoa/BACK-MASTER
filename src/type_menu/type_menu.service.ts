@@ -60,4 +60,23 @@ export class TypeMenuService {
     await this.typeMenuRepo.delete(id);
     return { message: "Type menu supprimé avec succès" };
   }
+
+  //seeds user type menu
+  async seedTypeMenus() {
+    const typeMenus = [
+      { nom: 'Chaud' },
+      { nom: 'Froid' },
+      { nom: 'Dessert' },
+    ];
+
+    for (const typeMenuData of typeMenus) {
+      const existingTypeMenu = await this.typeMenuRepo.findOneBy({ nom: typeMenuData.nom });
+      if (!existingTypeMenu) {
+        const typeMenu = this.typeMenuRepo.create(typeMenuData);
+        await this.typeMenuRepo.save(typeMenu);
+      }
+    }
+
+    return { message: "Type menus initialisés avec succès" };
+  }
 }

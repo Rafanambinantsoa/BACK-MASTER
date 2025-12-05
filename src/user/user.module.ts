@@ -6,9 +6,10 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { Role } from 'src/role/entities/role.entity';
 import { TypeMenu } from 'src/type_menu/entities/type_menu.entity';
 import { UserTypeMenu } from 'src/userTypeMenu/user-type-menu.entity';
+import { Table } from 'src/table/entities/table.entity';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([User, Role, TypeMenu, UserTypeMenu])],
+  imports: [TypeOrmModule.forFeature([User, Role, TypeMenu, UserTypeMenu, Table])],
   controllers: [UserController],
   providers: [UserService],
   exports: [UserService],

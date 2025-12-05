@@ -8,6 +8,9 @@ import { NotFoundException } from '@nestjs/common';
 import { Role } from 'src/role/entities/role.entity';
 import { UserTypeMenu } from 'src/userTypeMenu/user-type-menu.entity';
 import { TypeMenu } from 'src/type_menu/entities/type_menu.entity';
+import { Table } from 'src/table/entities/table.entity';
+import * as bcrypt from 'bcrypt';
+
 
 @Injectable()
 export class UserService {
@@ -22,7 +25,10 @@ export class UserService {
     private userTypeMenuRepository: Repository<UserTypeMenu>,
 
     @InjectRepository(TypeMenu)
-    private typeMenuRepository: Repository<TypeMenu>
+    private typeMenuRepository: Repository<TypeMenu>,
+
+    @InjectRepository(Table)
+    private tableRepository: Repository<Table>,
   ) { }
 
   async create(createUserDto: CreateUserDto) {
@@ -181,4 +187,194 @@ export class UserService {
     const count = await this.userRepository.countBy({ statut: true });
     return { activeUserCount: count };
   }
+
+  //seeds user
+  async seedUsers() {
+    const users = [
+      {
+        nom: 'Alice',
+        email: 'ka@gmail.com',
+        statut: true,
+        password: 'password1',
+        role_id: 1,
+        typeMenuIds: [1, 2],
+      },
+      {
+        nom: 'Bob',
+        email: 'bob@example.com',
+        statut: true,
+        password: 'password2',
+        role_id: 2,
+        typeMenuIds: [2, 3],
+      },
+      {
+        nom: 'Charlie',
+        email: 'charlie@example.com',
+        statut: true,
+        password: 'password3',
+        role_id: 3,
+        typeMenuIds: [1, 3],
+      },
+      {
+        nom: 'David',
+        email: 'david@example.com',
+        statut: true,
+        password: 'password4',
+        role_id: 4,
+        typeMenuIds: [2, 4],
+      }
+    ];
+
+    for (const userData of users) {
+      const existingUser = await this.userRepository.findOneBy({ email: userData.email });
+      if (!existingUser) {
+        const { typeMenuIds, ...userInfo } = userData;
+        const user = this.userRepository.create(userInfo);
+        const savedUser = await this.userRepository.save(user);
+
+        // Assigner les spécialités (typeMenuIds)
+        if (typeMenuIds && typeMenuIds.length > 0) {
+          const userTypeMenus: UserTypeMenu[] = [];
+
+          for (const typeMenuId of typeMenuIds) {
+            const typeMenu = await this.typeMenuRepository.findOneBy({ id: typeMenuId });
+            if (!typeMenu) continue;
+
+            const userTypeMenu = this.userTypeMenuRepository.create({
+              user: savedUser,
+              typeMenu: typeMenu,
+            });
+            userTypeMenus.push(userTypeMenu);
+          }
+
+          if (userTypeMenus.length > 0) {
+            await this.userTypeMenuRepository.save(userTypeMenus);
+          }
+        }
+      }
+    }
+
+    return { message: "Users initialisés avec succès" };
+  }
+
+  private async seedIfNotExists<T>(
+    repository: any,
+    uniqueKey: string,
+    data: T[]
+  ) {
+    for (const item of data) {
+      const where = { [uniqueKey]: item[uniqueKey] };
+      const exists = await repository.findOneBy(where);
+
+      if (!exists) {
+        const entity = repository.create(item);
+        await repository.save(entity);
+      }
+    }
+  }
+
+  private async seedUsersWithTypeMenus() {
+    const users = [
+      {
+        nom: 'Alice',
+        email: 'ka@gmail.com',
+        statut: true,
+        password: 'mikasa',
+        role_id: 1,
+        typeMenuIds: [1, 2],
+      },
+      {
+        nom: 'Bob',
+        email: 'bob@example.com',
+        statut: true,
+        password: 'mikasa',
+        role_id: 2,
+        typeMenuIds: [2, 3],
+      },
+      {
+        nom: 'Charlie',
+        email: 'charlie@example.com',
+        statut: true,
+        password: 'mikasa',
+        role_id: 3,
+        typeMenuIds: [1, 3],
+      },
+      {
+        nom: 'David',
+        email: 'david@example.com',
+        statut: true,
+        password: 'mikasa',
+        role_id: 4,
+        typeMenuIds: [2, 4],
+      },
+    ];
+
+    for (const userData of users) {
+
+      const existingUser = await this.userRepository.findOneBy({ email: userData.email });
+      if (existingUser) continue;
+
+      const { typeMenuIds, ...userInfo } = userData;
+      const hashedPassword = await bcrypt.hash(userInfo.password, 10);
+
+      const user = this.userRepository.create({ ...userInfo, password: hashedPassword });
+      const savedUser = await this.userRepository.save(user);
+
+      if (typeMenuIds?.length) {
+        const userTypeMenus: UserTypeMenu[] = [];  // ✅ FIX
+
+        for (const id of typeMenuIds) {
+          const typeMenu = await this.typeMenuRepository.findOneBy({ id });
+          if (!typeMenu) continue;
+
+          userTypeMenus.push(
+            this.userTypeMenuRepository.create({
+              user: savedUser,
+              typeMenu,
+            })
+          );
+        }
+
+        if (userTypeMenus.length) {
+          await this.userTypeMenuRepository.save(userTypeMenus);
+        }
+      }
+    }
+  }
+
+
+
+
+  //Seed principale 
+  async seedAll() {
+    await this.seedIfNotExists(this.typeMenuRepository, 'nom', [
+      { nom: 'Chaud' },
+      { nom: 'Froid' },
+      { nom: 'Dessert' },
+    ]);
+
+    await this.seedIfNotExists(this.tableRepository, 'numero_table', [
+      { numero_table: 'Table 1' },
+      { numero_table: 'Table 2' },
+      { numero_table: 'Table 3' },
+      { numero_table: 'Table 4' },
+      { numero_table: 'Table 5' },
+    ]);
+
+    await this.seedIfNotExists(this.roleRepository, 'nom', [
+      { nom: 'Cuisinier', description: 'Prépare les plats', couleur: 'rouge' },
+      { nom: 'Serveur', description: 'Serve les clients', couleur: 'vert' },
+      { nom: 'Admin', description: 'Gestion complète du système', couleur: 'jaune' },
+      { nom: 'Caissier', description: 'Gère les paiements', couleur: 'violet' },
+    ]);
+
+    await this.seedUsersWithTypeMenus();
+
+    return { message: 'Toutes les données ont été seed avec succès' };
+  }
+
+
+
+
+
 }

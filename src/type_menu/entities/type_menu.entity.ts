@@ -14,6 +14,6 @@ export class TypeMenu {
     @OneToMany(() => Menu, (menu) => menu.type_menu)
     menus: Menu[];
 
-    @OneToMany(() => UserTypeMenu, (userTypeMenu) => userTypeMenu.typeMenu, { eager: true })
+    @OneToMany(() => UserTypeMenu, (userTypeMenu) => userTypeMenu.typeMenu)
     userTypeMenus: UserTypeMenu[];
 }

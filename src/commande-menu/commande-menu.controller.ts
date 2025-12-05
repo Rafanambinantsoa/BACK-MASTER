@@ -5,7 +5,7 @@ import { UpdateCommandeMenuDto } from './dto/update-commande-menu.dto';
 
 @Controller('commande-menu')
 export class CommandeMenuController {
-  constructor(private readonly commandeMenuService: CommandeMenuService) {}
+  constructor(private readonly commandeMenuService: CommandeMenuService) { }
 
   @Post()
   create(@Body() createCommandeMenuDto: CreateCommandeMenuDto) {
@@ -30,5 +30,10 @@ export class CommandeMenuController {
   @Delete(':id')
   remove(@Param('id') id: string) {
     return this.commandeMenuService.remove(+id);
+  }
+
+  @Get('count/today')
+  countToday() {
+    return this.commandeMenuService.countCommandeMenuToday();
   }
 }

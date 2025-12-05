@@ -43,4 +43,10 @@ export class UserController {
   countActiveUsers() {
     return this.userService.countActiveUsers();
   }
+
+  //seeds
+  @Post('seeds')
+  async seedUsers() {
+    return this.userService.seedAll();
+  }
 }

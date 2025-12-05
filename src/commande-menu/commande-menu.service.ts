@@ -31,7 +31,31 @@ export class CommandeMenuService {
     return this.cM.findOne({ where: { id } });
   }
 
-  remove(id: number) {
+  async remove(id: number) {
     return `This action removes a #${id} commandeMenu`;
   }
+
+  async countCommandeMenuToday() {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
+    const result = await this.cM
+      .createQueryBuilder('commandeMenu')
+      .where('commandeMenu.createdAt >= :startOfDay AND commandeMenu.createdAt < :endOfDay', {
+        startOfDay: today,
+        endOfDay: tomorrow,
+      })
+      .select('COUNT(commandeMenu.id)', 'count')
+      .getRawOne();
+
+    return { count: Number(result.count) };
+  }
+
+  // Nombre de plat en cours today
+  // Nombre de plat en attente today
+
+
 }

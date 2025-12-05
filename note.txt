@@ -1,3 +1,22 @@
+1 - Dans la gestion des role 
+Masque les  bouton ajout et modif et suppression DONE
+
+2 - Redirection Dynamique selon le role Front end  , un role qui ne correspond pas a la page  doit etre rediriger vers une page 403 DONE
+
+3 - La liste des  findAll  devrait etre asc 
+
+4 - La liste des plats  selon le type de menu  doit etre dynamique dans le cuisinier
+
+5  - Un cuisinier ne peut pas faire plus d'un tache a la fois 
+
+6 - 
+
+POUR LES SEEDS 
+- Role 
+- Typemenu
+- User
+
+
 -login
 -Protection des route
 - Relation  

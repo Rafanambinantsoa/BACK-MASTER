@@ -60,4 +60,25 @@ export class TableService {
 
     return { message: "Table removed" }
   }
+
+  async seedsTable() {
+    const tables = [
+      { numero_table: "Table 1 " },
+      { numero_table: "Table 2 " },
+      { numero_table: "Table 3 " },
+      { numero_table: "Table 4 " },
+      { numero_table: "Table 5 " },
+    ];
+
+    for (const tableData of tables) {
+      const existingTable = await this.tableRepo.findOneBy({ numero_table: tableData.numero_table });
+      if (!existingTable) {
+        const table = this.tableRepo.create(tableData);
+        await this.tableRepo.save(table);
+      }
+    }
+
+    return { message: "Tables initialisées avec succès" };
+
+  }
 }

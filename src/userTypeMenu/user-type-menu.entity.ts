@@ -14,7 +14,7 @@ export class UserTypeMenu {
     user: User;
 
     @ManyToOne(() => TypeMenu, (typeMenu) => typeMenu.userTypeMenus, {
-        onDelete: 'CASCADE'
+        onDelete: 'CASCADE', eager: true
     })
     @JoinColumn({ name: 'typeMenuId' })
     typeMenu: TypeMenu;
