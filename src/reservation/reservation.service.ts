@@ -490,7 +490,7 @@ export class ReservationService {
     return { count };
   }
 
-  async findByCode(id) {
+  async findByCode(id: string) {
     const data = await this.reservationRepository.findOne({
       where: { code: id },
       relations: [

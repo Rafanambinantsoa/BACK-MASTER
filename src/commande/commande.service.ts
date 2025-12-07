@@ -12,6 +12,7 @@ import { Table } from 'src/table/entities/table.entity';
 import { ReservationTable } from 'src/reservation-table/entities/reservation-table.entity';
 import { UpdateCommandeMenuStatusDto } from './dto/update-commande-menu-status.dto';
 import { PaiementPret } from 'src/paiement-pret/entities/paiement-pret.entity';
+import { CreateCommandeFromReservationDto } from './dto/CreateCommandeFromReservationDto.dto';
 
 @Injectable()
 export class CommandeService {
@@ -546,6 +547,103 @@ export class CommandeService {
 
     return { totalPret: parseFloat(totalPret.totalPret) };
   }
+
+
+  async createFromExistingReservation(dto: CreateCommandeFromReservationDto) {
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    try {
+
+      if (!dto.menuIds?.length || !dto.quantities?.length) {
+        throw new BadRequestException('Aucun menu fourni.');
+      }
+
+      if (dto.menuIds.length !== dto.quantities.length) {
+        throw new BadRequestException('menuIds et quantities doivent avoir la même taille.');
+      }
+
+      // ========= CLIENT =========
+      const client = await queryRunner.manager.findOne(Client, { where: { id: dto.clientId } });
+      if (!client) throw new BadRequestException('Client introuvable');
+
+      // ========= RESERVATION =========
+      const reservation = await queryRunner.manager.findOne(Reservation, {
+        where: { id: dto.reservationId },
+      });
+      if (!reservation) throw new BadRequestException('Réservation introuvable');
+
+      // Vérifier que la réservation appartient bien au client
+      if (reservation.client_id !== client.id) {
+        throw new BadRequestException('La réservation ne correspond pas au client');
+      }
+
+      // Vérifier que la réservation est valide
+      if (reservation.status === 'annulee') {
+        throw new BadRequestException('La réservation est annulée');
+      }
+
+      // ========= MENUS =========
+      let totalPrice = 0;
+
+      for (let i = 0; i < dto.menuIds.length; i++) {
+        const menu = await queryRunner.manager.findOne(Menu, { where: { id: dto.menuIds[i] } });
+
+        if (!menu) throw new BadRequestException(`Menu introuvable : ${dto.menuIds[i]}`);
+
+        const qty = dto.quantities[i];
+        if (qty <= 0) throw new BadRequestException(`Quantité invalide pour ${menu.nom}`);
+
+        totalPrice += menu.prix * qty;
+      }
+
+      // ========= COMMANDE =========
+      const commande = queryRunner.manager.create(Commande, {
+        reservation_id: reservation.id,
+        date_commande: dto.date_commande ?? new Date(),
+        status: 'en_cours',
+        total_price: totalPrice,
+      });
+
+      const savedCommande = await queryRunner.manager.save(commande);
+
+      // ========= REFERENCE =========
+      const reference = `COM-${savedCommande.id.toString().padStart(6, '0')}`;
+      await queryRunner.manager.update(Commande, savedCommande.id, { reference });
+      savedCommande.reference = reference;
+
+      // ========= COMMANDE MENUS =========
+      for (let i = 0; i < dto.menuIds.length; i++) {
+        await queryRunner.manager.save(
+          CommandeMenu,
+          queryRunner.manager.create(CommandeMenu, {
+            commande_id: savedCommande.id,
+            menuId: dto.menuIds[i],
+            quantity: dto.quantities[i],
+            status: 'en_attente',
+          }),
+        );
+      }
+
+      await queryRunner.commitTransaction();
+
+      return {
+        message: 'Commande créée pour la réservation existante',
+        commande: savedCommande,
+      };
+
+    } catch (error) {
+      await queryRunner.rollbackTransaction();
+      throw new BadRequestException({
+        message: 'Erreur lors de la création de la commande',
+        details: error.message,
+      });
+    } finally {
+      await queryRunner.release();
+    }
+  }
+
 
 
 

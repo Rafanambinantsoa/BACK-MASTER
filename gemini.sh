@@ -27,7 +27,22 @@ PROMPT=$(cat <<EOF
 Voici les changements git diff :
 $DIFF
 
-Génère un message de commit clair, concis, en français, au format Conventional Commits.
+Génère un message de commit en français au format Conventional Commits à partir des modifications effectuées (git diff).
+Le message doit :
+
+Respecter strictement la syntaxe type(scope): description
+
+Utiliser l’impératif présent (ex: "ajouter", "corriger", "mettre à jour")
+
+Être clair, concis et descriptif
+
+Inclure un scope pertinent si identifiable
+
+Ne pas dépasser 72 caractères pour la ligne principale
+
+Utiliser un type approprié (feat, fix, refactor, docs, test, chore, etc.)
+
+Optionnellement inclure un corps si nécessaire (liste des changements majeurs)
 RENVOIE UNIQUEMENT LA LIGNE DU COMMIT, SANS TEXTE SUPPLÉMENTAIRE, SANS GUILLEMETS.
 EOF
 )

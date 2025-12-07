@@ -5,6 +5,7 @@ import { UpdateCommandeDto } from './dto/update-commande.dto';
 import { UpdateCommandeMenuStatusDto } from './dto/update-commande-menu-status.dto';
 import { UpdateCommandeMenusDto } from './dto/update-commande-menus.dto';
 import { get } from 'http';
+import { CreateCommandeFromReservationDto } from './dto/CreateCommandeFromReservationDto.dto';
 
 @Controller('commande')
 export class CommandeController {
@@ -77,5 +78,11 @@ export class CommandeController {
   @Get('total/cash/today')
   totalCashToday() {
     return this.commandeService.totalPaiementToday();
+  }
+
+  //Commande from reservation et client 
+  @Post('from-reservation')
+  createFromReservation(@Body() dto: CreateCommandeFromReservationDto) {
+    return this.commandeService.createFromExistingReservation(dto);
   }
 }
