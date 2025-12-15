@@ -23,6 +23,7 @@ import { TasksModule } from './crons/crons.module';
 import { PaimentCommandeModule } from './paiment-commande/paiment-commande.module';
 import { PaiementPretModule } from './paiement-pret/paiement-pret.module';
 import { PaimentResteModule } from './paiment-reste/paiment-reste.module';
+import { StripeModule } from './stripe/stripe.module';
 
 @Module({
   imports: [
@@ -33,11 +34,11 @@ import { PaimentResteModule } from './paiment-reste/paiment-reste.module';
     ConfigModule.forRoot({ isGlobal: true }),
     TypeOrmModule.forRoot({
       type: 'mysql',
-      host: 'localhost',
+      host: 'auth-db1318.hstgr.io',
       port: 3306,
-      username: 'root',
-      password: '',
-      database: 'masterback',
+      username: 'u614166417_kim',
+      password: 'U614166417_kim',
+      database: 'u614166417_kim',
       autoLoadEntities: true,
       synchronize: true, // ⚠️ à désactiver en production
     }),
@@ -59,6 +60,7 @@ import { PaimentResteModule } from './paiment-reste/paiment-reste.module';
     PaimentCommandeModule,
     PaiementPretModule,
     PaimentResteModule,
+    StripeModule,
   ],
   controllers: [AppController],
   providers: [AppService],

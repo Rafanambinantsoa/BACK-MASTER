@@ -11,10 +11,12 @@ import { DispoDto } from './dto/dispo.dto';
 import { Menu } from 'src/menu/entities/menu.entity';
 import { ReservationMenu } from 'src/reservation-menu/entities/reservation-menu.entity';
 import { PaimentReservationTable } from 'src/paiment-reservation-table/entities/paiment-reservation-table.entity';
+import { StripeService } from 'src/stripe/stripe.service';
 
 @Injectable()
 export class ReservationService {
   constructor(
+    private readonly stripeService: StripeService,
     private dataSource: DataSource,
 
     @InjectRepository(Reservation)

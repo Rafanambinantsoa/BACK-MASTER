@@ -9,9 +9,10 @@ import { Table } from 'src/table/entities/table.entity';
 import { ReservationMenu } from 'src/reservation-menu/entities/reservation-menu.entity';
 import { Menu } from 'src/menu/entities/menu.entity';
 import { PaimentReservationTable } from 'src/paiment-reservation-table/entities/paiment-reservation-table.entity';
+import { StripeModule } from 'src/stripe/stripe.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Reservation, Client, ReservationTable, Table, ReservationMenu, Menu, PaimentReservationTable])],
+  imports: [TypeOrmModule.forFeature([Reservation, Client, ReservationTable, Table, ReservationMenu, Menu, PaimentReservationTable]), StripeModule],
   controllers: [ReservationController],
   providers: [ReservationService],
 })
