@@ -9,5 +9,6 @@ import { Commande } from 'src/commande/entities/commande.entity';
   imports: [TypeOrmModule.forFeature([PaimentCommande, Commande])],
   controllers: [PaimentCommandeController],
   providers: [PaimentCommandeService],
+  exports: [PaimentCommandeService],
 })
 export class PaimentCommandeModule { }

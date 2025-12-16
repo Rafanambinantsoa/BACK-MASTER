@@ -1,9 +1,10 @@
-import { Controller, Post, Req, Res, Headers, Inject, forwardRef } from '@nestjs/common';
+import { Controller, Post, Req, Res, Headers, Inject, forwardRef, Body, BadRequestException } from '@nestjs/common';
 import type { RawBodyRequest } from '@nestjs/common';
 import { StripeService } from './stripe.service';
 import { ReservationService } from '../reservation/reservation.service';
 import type { Request, Response } from 'express';
 import { ConfigService } from '@nestjs/config';
+import { PaimentCommandeService } from 'src/paiment-commande/paiment-commande.service';
 
 @Controller('stripe')
 export class StripeController {
@@ -11,6 +12,7 @@ export class StripeController {
     private readonly stripeService: StripeService,
     @Inject(forwardRef(() => ReservationService))
     private readonly reservationService: ReservationService,
+    private readonly paimentCommandeService: PaimentCommandeService,
     private readonly configService: ConfigService,
   ) {}
 
@@ -65,6 +67,43 @@ export class StripeController {
       console.error('Erreur webhook Stripe:', error);
       res.status(400).json({ error: error.message });
     }
+  }
+
+  /**
+   * Crée un PaymentIntent pour l'encaissement d'une commande
+   * Utilisé par le frontend de caisse lors du choix du mode Stripe
+   */
+  @Post('commande-payment-intent')
+  async createCommandePaymentIntent(
+    @Body()
+    body: {
+      commandeId: number;
+      amount: number;
+    },
+  ) {
+    const { commandeId, amount } = body;
+
+    if (!commandeId || !amount || isNaN(amount) || amount <= 0) {
+      throw new BadRequestException('commandeId et amount valides sont requis');
+    }
+
+    const amountInCents = Math.round(amount * 100);
+
+    const paymentIntent = await this.stripeService.createPaymentIntent(
+      amountInCents,
+      {
+        commandeId,
+      },
+    );
+
+    if (!paymentIntent.client_secret) {
+      throw new BadRequestException('Stripe client_secret manquant');
+    }
+
+    return {
+      clientSecret: paymentIntent.client_secret,
+      paymentIntentId: paymentIntent.id,
+    };
   }
 
   /**
