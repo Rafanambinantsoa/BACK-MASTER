@@ -2,11 +2,19 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
 import { corsConfig } from './common/config/cors.config';
+import * as bodyParser from 'body-parser';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
   app.enableCors(corsConfig);
+
+  // Configuration pour l'endpoint webhook Stripe : parser le body brut
+  // Cette route doit recevoir le body brut pour vérifier la signature Stripe
+  app.use('/stripe/webhook', bodyParser.raw({ type: 'application/json' }));
+
+  // Pour toutes les autres routes, utiliser le parsing JSON normal
+  app.use(bodyParser.json());
 
   //Validation globale 
   // Validation globale

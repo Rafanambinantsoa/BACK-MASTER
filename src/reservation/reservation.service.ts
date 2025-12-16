@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, InternalServerErrorException, NotFoundException, Inject, forwardRef } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In, DataSource, Between } from 'typeorm';
 import { Reservation } from './entities/reservation.entity';
@@ -16,6 +16,7 @@ import { StripeService } from 'src/stripe/stripe.service';
 @Injectable()
 export class ReservationService {
   constructor(
+    @Inject(forwardRef(() => StripeService))
     private readonly stripeService: StripeService,
     private dataSource: DataSource,
 
@@ -41,6 +42,8 @@ export class ReservationService {
     await queryRunner.startTransaction();
 
     let code: string | undefined = undefined;
+    let stripeClientSecret: string | undefined;
+
     try {
       const {
         tableIds,
@@ -60,9 +63,14 @@ export class ReservationService {
         ...data
       } = dto;
 
-      if (!client_email) throw new BadRequestException('Email client requis');
+      if (!client_email)
+        throw new BadRequestException('Email client requis');
 
-      let client = await queryRunner.manager.findOne(Client, { where: { email: client_email } });
+      // ===== CLIENT =====
+      let client = await queryRunner.manager.findOne(Client, {
+        where: { email: client_email },
+      });
+
       if (client) {
         client.nom = client_nom || client.nom;
         client.telephone = client_telephone || client.telephone;
@@ -78,27 +86,38 @@ export class ReservationService {
         await queryRunner.manager.save(Client, client);
       }
 
+      // ===== TABLES =====
       if (!tableIds?.length)
         throw new BadRequestException('Au moins une table doit être spécifiée');
 
       for (const tableId of tableIds) {
         const tableExists = await queryRunner.manager.findOneBy(Table, { id: tableId });
-        if (!tableExists) throw new NotFoundException(`Table ${tableId} introuvable`);
+        if (!tableExists)
+          throw new NotFoundException(`Table ${tableId} introuvable`);
 
-        const dispo = await this.verifierDisponibiliteTable(tableId, date, heure_debut, heure_fin);
+        const dispo = await this.verifierDisponibiliteTable(
+          tableId,
+          date,
+          heure_debut,
+          heure_fin,
+        );
+
         if (!dispo.disponible)
-          throw new BadRequestException(`Table ${tableId} déjà réservée sur cette période`);
+          throw new BadRequestException(`Table ${tableId} déjà réservée`);
       }
 
+      // ===== MENUS =====
       if (type_reservation && type_reservation !== 'standard') {
         if (!menuIds?.length)
-          throw new BadRequestException('Menus requis pour ce type de réservation');
+          throw new BadRequestException('Menus requis');
+
         if (!menuQuantities || menuQuantities.length !== menuIds.length)
-          throw new BadRequestException('Les quantités doivent correspondre aux menus.');
+          throw new BadRequestException('menuQuantities invalide');
 
         code = await this.generateUniqueReservationCode(queryRunner.manager);
       }
 
+      // ===== RESERVATION =====
       const reservation = queryRunner.manager.create(Reservation, {
         ...data,
         client,
@@ -106,58 +125,112 @@ export class ReservationService {
         heure_debut,
         heure_fin,
         type_reservation,
-        code
+        code,
       });
+
       const saved = await queryRunner.manager.save(Reservation, reservation);
 
+      // ===== RESERVATION TABLES =====
       const tables = await queryRunner.manager.findBy(Table, { id: In(tableIds) });
-      const reservationTables = tables.map((table) =>
-        queryRunner.manager.create(ReservationTable, { table, reservation: saved }),
-      );
-      await queryRunner.manager.save(ReservationTable, reservationTables);
-
-      if (type_reservation && type_reservation !== 'standard' && menuIds?.length) {
-        const menus = await queryRunner.manager.findBy(Menu, { id: In(menuIds) });
-        const reservationMenus = menus.map((menu, index) =>
-          queryRunner.manager.create(ReservationMenu, {
-            menu,
+      await queryRunner.manager.save(
+        ReservationTable,
+        tables.map((table) =>
+          queryRunner.manager.create(ReservationTable, {
+            table,
             reservation: saved,
-            quantity: menuQuantities[index],
           }),
+        ),
+      );
+
+      // ===== RESERVATION MENUS =====
+      if (type_reservation !== 'standard') {
+        const menus = await queryRunner.manager.findBy(Menu, { id: In(menuIds) });
+        await queryRunner.manager.save(
+          ReservationMenu,
+          menus.map((menu, index) =>
+            queryRunner.manager.create(ReservationMenu, {
+              menu,
+              reservation: saved,
+              quantity: menuQuantities[index],
+            }),
+          ),
         );
-        await queryRunner.manager.save(ReservationMenu, reservationMenus);
       }
 
+      // ===== PAIEMENT =====
       if (type_reservation !== 'standard' && type_paiment) {
-        if (type_paiment === 'mobile_money' && !reference)
-          throw new BadRequestException('Référence requise pour mobile money.');
-        if (type_paiment !== 'stripe') {
+
+        // ---- STRIPE ----
+        if (type_paiment === 'stripe') {
+
           if (montant == null || isNaN(montant))
-            throw new BadRequestException('Montant invalide ou manquant.');
+            throw new BadRequestException('Montant requis pour Stripe');
+
+          const paymentIntent = await this.stripeService.createPaymentIntent(
+            Math.round(montant * 100),
+            {
+              reservationId: saved.id,
+              clientEmail: client_email,
+            },
+          );
 
           const paiement = queryRunner.manager.create(PaimentReservationTable, {
             reservation: saved,
-            type_paiment,
-            reference: type_paiment === 'mobile_money' ? reference : undefined,
+            reservation_id: saved.id,
+            type_paiment: 'stripe',
             montant,
+            stripe_payment_intent_id: paymentIntent.id,
+            reference: undefined,
           });
+
+
           await queryRunner.manager.save(PaimentReservationTable, paiement);
+
+          if (!paymentIntent.client_secret) {
+            throw new InternalServerErrorException('Stripe client_secret manquant');
+          }
+
+          stripeClientSecret = paymentIntent.client_secret;
+
         }
 
+        // ---- AUTRES PAIEMENTS ----
+        else {
 
+          if (type_paiment === 'mobile_money' && !reference)
+            throw new BadRequestException('Référence requise pour mobile money');
+
+          if (montant == null || isNaN(montant))
+            throw new BadRequestException('Montant invalide');
+
+          const paiement = queryRunner.manager.create(PaimentReservationTable, {
+            reservation_id: saved.id,       // clé étrangère uniquement
+            type_paiment,
+            reference: reference ?? undefined,       // null → undefined
+            montant,
+            stripe_payment_intent_id: undefined,    // null → undefined
+          });
+
+
+          await queryRunner.manager.save(PaimentReservationTable, paiement);
+        }
       }
 
       await queryRunner.commitTransaction();
 
-      return this.reservationRepository.findOne({
-        where: { id: saved.id },
-        relations: [
-          'client',
-          'reservationTables.table',
-          'reservationMenus.menu',
-          'paimentReservationTable',
-        ],
-      });
+      return {
+        reservation: await this.reservationRepository.findOne({
+          where: { id: saved.id },
+          relations: [
+            'client',
+            'reservationTables.table',
+            'reservationMenus.menu',
+            'paimentReservationTable',
+          ],
+        }),
+        stripeClientSecret,
+      };
+
     } catch (error) {
       await queryRunner.rollbackTransaction();
       throw error;
@@ -165,6 +238,7 @@ export class ReservationService {
       await queryRunner.release();
     }
   }
+
 
   //Generer  code unique  de la reservation
   private async generateUniqueReservationCode(manager): Promise<string> {
@@ -506,5 +580,50 @@ export class ReservationService {
     });
     if (!data) throw new NotFoundException('Réservation introuvable');
     return data;
+  }
+
+  /**
+   * Confirme le paiement Stripe et met à jour le statut de la réservation
+   * Appelé par le webhook Stripe quand payment_intent.succeeded
+   */
+  async confirmStripePayment(paymentIntentId: string) {
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    try {
+      // Trouver le paiement avec ce payment_intent_id
+      const paiement = await queryRunner.manager.findOne(PaimentReservationTable, {
+        where: { stripe_payment_intent_id: paymentIntentId },
+        relations: ['reservation'],
+      });
+
+      if (!paiement) {
+        throw new NotFoundException(
+          `Aucun paiement trouvé pour PaymentIntent: ${paymentIntentId}`
+        );
+      }
+
+      // Vérifier que le paiement n'est pas déjà confirmé
+      if (paiement.reservation.status === 'confirmée' || paiement.reservation.status === 'payée') {
+        console.log(`Réservation ${paiement.reservation.id} déjà confirmée`);
+        await queryRunner.commitTransaction();
+        return paiement.reservation;
+      }
+
+      // Mettre à jour le statut de la réservation
+      paiement.reservation.status = 'confirmée';
+      await queryRunner.manager.save(Reservation, paiement.reservation);
+
+      await queryRunner.commitTransaction();
+
+      console.log(`Réservation ${paiement.reservation.id} confirmée après paiement Stripe`);
+      return paiement.reservation;
+    } catch (error) {
+      await queryRunner.rollbackTransaction();
+      throw error;
+    } finally {
+      await queryRunner.release();
+    }
   }
 }

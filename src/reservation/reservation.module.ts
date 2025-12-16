@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { ReservationService } from './reservation.service';
 import { ReservationController } from './reservation.controller';
 import { TypeOrmModule } from '@nestjs/typeorm';
@@ -12,8 +12,12 @@ import { PaimentReservationTable } from 'src/paiment-reservation-table/entities/
 import { StripeModule } from 'src/stripe/stripe.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Reservation, Client, ReservationTable, Table, ReservationMenu, Menu, PaimentReservationTable]), StripeModule],
+  imports: [
+    TypeOrmModule.forFeature([Reservation, Client, ReservationTable, Table, ReservationMenu, Menu, PaimentReservationTable]),
+    forwardRef(() => StripeModule)
+  ],
   controllers: [ReservationController],
   providers: [ReservationService],
+  exports: [ReservationService], // Exporté pour être utilisé dans StripeModule
 })
 export class ReservationModule { }

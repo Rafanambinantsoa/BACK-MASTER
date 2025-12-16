@@ -2,7 +2,7 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { UserModule } from './user/user.module';
-import { Module } from '@nestjs/common';
+import { Module, NestModule, MiddlewareConsumer } from '@nestjs/common';
 import { RoleModule } from './role/role.module';
 import { AuthModule } from './auth/auth.module';
 import { ConfigModule } from '@nestjs/config';
@@ -24,6 +24,7 @@ import { PaimentCommandeModule } from './paiment-commande/paiment-commande.modul
 import { PaiementPretModule } from './paiement-pret/paiement-pret.module';
 import { PaimentResteModule } from './paiment-reste/paiment-reste.module';
 import { StripeModule } from './stripe/stripe.module';
+import { StripeWebhookMiddleware } from './stripe/stripe-webhook.middleware';
 
 @Module({
   imports: [
@@ -65,4 +66,11 @@ import { StripeModule } from './stripe/stripe.module';
   controllers: [AppController],
   providers: [AppService],
 })
-export class AppModule { }
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    // Appliquer le middleware pour parser le body brut uniquement pour l'endpoint webhook Stripe
+    consumer
+      .apply(StripeWebhookMiddleware)
+      .forRoutes('stripe/webhook');
+  }
+}
