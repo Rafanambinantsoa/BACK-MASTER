@@ -91,12 +91,17 @@ export class PaiementPretService {
       throw new BadRequestException('La référence est obligatoire pour le paiement mobile money');
     }
 
+    if (dto.modePaiement === "stripe" && !dto.stripe) {
+      throw new BadRequestException('Identifiant Stripe requis pour un paiement Stripe');
+    }
+
     // 1) Création du paiement enfant
     const paiementReste = this.paiementResteRepository.create({
       paiementPret: { id } as any,   // ✅ référence locale, pas l'objet mémoire
       montant: dto.montantPaye,
       modePaiement: dto.modePaiement,
       reference: dto.reference ?? null,
+      stripe: dto.stripe ?? null,
     });
 
     const check = await this.paiementResteRepository.save(paiementReste);

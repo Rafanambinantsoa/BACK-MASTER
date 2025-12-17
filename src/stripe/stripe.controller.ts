@@ -107,6 +107,43 @@ export class StripeController {
   }
 
   /**
+   * Crée un PaymentIntent pour le paiement du reste d'un prêt
+   * Utilisé par le frontend lors du choix du mode Stripe pour un PaiementPret
+   */
+  @Post('pret-reste-payment-intent')
+  async createPretRestePaymentIntent(
+    @Body()
+    body: {
+      pretId: number;
+      amount: number;
+    },
+  ) {
+    const { pretId, amount } = body;
+
+    if (!pretId || !amount || isNaN(amount) || amount <= 0) {
+      throw new BadRequestException('pretId et amount valides sont requis');
+    }
+
+    const amountInCents = Math.round(amount * 100);
+
+    const paymentIntent = await this.stripeService.createPaymentIntent(
+      amountInCents,
+      {
+        pretId,
+      },
+    );
+
+    if (!paymentIntent.client_secret) {
+      throw new BadRequestException('Stripe client_secret manquant');
+    }
+
+    return {
+      clientSecret: paymentIntent.client_secret,
+      paymentIntentId: paymentIntent.id,
+    };
+  }
+
+  /**
    * Gère l'événement payment_intent.succeeded
    */
   private async handlePaymentIntentSucceeded(paymentIntent: any) {
