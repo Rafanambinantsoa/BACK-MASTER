@@ -33,7 +33,7 @@ export class MenuService {
       throw new NotFoundException('Introuvable')
     }
     //AJoute l;image url  COMPLTE
-    const baseUrl = process.env.BASE_URL || 'http://localhost:3000/uploads/menu';
+    const baseUrl = process.env.BASE_URL || 'https://back-master-ztyd.onrender.com/uploads/menu';
     if (menuRelation.image) {
       menuRelation['imageUrl'] = `${baseUrl}/${menuRelation.image}`;
     } else {
