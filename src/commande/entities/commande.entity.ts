@@ -2,6 +2,7 @@ import { CommandeMenu } from "src/commande-menu/entities/commande-menu.entity";
 import { PaiementPret } from "src/paiement-pret/entities/paiement-pret.entity";
 import { PaimentCommande } from "src/paiment-commande/entities/paiment-commande.entity";
 import { Reservation } from "src/reservation/entities/reservation.entity";
+import { User } from "src/user/entities/user.entity";
 import { AfterInsert, Column, Entity, getRepository, JoinColumn, ManyToOne, OneToMany, PrimaryGeneratedColumn } from "typeorm";
 
 @Entity()
@@ -40,4 +41,8 @@ export class Commande {
     @OneToMany(() => PaiementPret, (paiementPret) => paiementPret.commandeId)
     paiementPrets: PaiementPret[];
 
+
+    @ManyToOne(() => User, (user) => user.commandes, { eager: true })
+    @JoinColumn({ name: 'user_id' }) // précise la colonne FK
+    user: User;
 }

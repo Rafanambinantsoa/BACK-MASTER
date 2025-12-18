@@ -38,5 +38,7 @@ export class CreateCommandeDto {
     @IsNotEmpty()
     quantities: number[]
 
+    @IsNotEmpty()
+    user_id: number;
 
 }

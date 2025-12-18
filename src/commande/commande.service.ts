@@ -107,6 +107,7 @@ export class CommandeService {
         date_commande: dto.date_commande,
         status: 'en_cours',
         total_price: totalPrice,
+        user_id: dto.user_id,
       });
       const savedCommande = await queryRunner.manager.save(Commande, commande);
 

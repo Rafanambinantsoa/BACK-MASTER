@@ -1,6 +1,7 @@
 import { UserTypeMenu } from "src/userTypeMenu/user-type-menu.entity";
 import { Role } from "src/role/entities/role.entity";
 import { Column, Entity, JoinColumn, ManyToOne, OneToMany, PrimaryGeneratedColumn } from "typeorm";
+import { Commande } from "src/commande/entities/commande.entity";
 
 @Entity()
 export class User {
@@ -30,6 +31,7 @@ export class User {
     @OneToMany(() => UserTypeMenu, (userTypeMenu) => userTypeMenu.user, { eager: true })
     userTypeMenus: UserTypeMenu[];
 
-
+    @OneToMany(() => Commande, (commande) => commande.user)
+    commandes: Commande[];
 
 }
