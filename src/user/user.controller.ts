@@ -44,6 +44,12 @@ export class UserController {
     return this.userService.countActiveUsers();
   }
 
+  @UseGuards(JwtAuthGuard)
+  @Get('recette/total')
+  getTotalRevenue() {
+    return this.userService.getTotalRevenue();
+  }
+
   //seeds
   @Post('seeds')
   async seedUsers() {

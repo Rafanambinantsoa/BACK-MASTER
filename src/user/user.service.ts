@@ -9,6 +9,8 @@ import { Role } from 'src/role/entities/role.entity';
 import { UserTypeMenu } from 'src/userTypeMenu/user-type-menu.entity';
 import { TypeMenu } from 'src/type_menu/entities/type_menu.entity';
 import { Table } from 'src/table/entities/table.entity';
+import { PaimentCommande } from 'src/paiment-commande/entities/paiment-commande.entity';
+import { PaiementReste } from 'src/paiment-reste/entities/paiment-reste.entity';
 import * as bcrypt from 'bcrypt';
 
 
@@ -29,6 +31,12 @@ export class UserService {
 
     @InjectRepository(Table)
     private tableRepository: Repository<Table>,
+
+    @InjectRepository(PaimentCommande)
+    private paimentCommandeRepository: Repository<PaimentCommande>,
+
+    @InjectRepository(PaiementReste)
+    private paiementResteRepository: Repository<PaiementReste>,
   ) { }
 
   async create(createUserDto: CreateUserDto) {
@@ -372,6 +380,41 @@ export class UserService {
 
     return { message: 'Toutes les données ont été seed avec succès' };
   }
+
+  /**
+ * Retourne la recette totale accumulée (tous paiements enregistrés)
+ * Somme des montants de PaimentCommande + PaiementPret.montantAvance + PaiementReste.montant + PaimentReservationTable.montant
+ */
+  async getTotalRevenue(): Promise<{ totalRevenue: number }> {
+    let totalRevenue = 0;
+
+    // 1️⃣ Total des paiements des commandes classiques
+    const paimentCommandes = await this.paimentCommandeRepository.find();
+    totalRevenue += paimentCommandes.reduce((sum, p) => sum + Number(p.montant), 0);
+
+    // 2️⃣ Total des paiements des réservations de table
+    const paimentReservations = await this.paiementResteRepository.manager
+      .getRepository('PaimentReservationTable')
+      .find();
+    totalRevenue += paimentReservations.reduce((sum, p) => sum + Number(p.montant), 0);
+
+    // 3️⃣ Total des paiements en mode "prêt" (avance + reste)
+    const paiementPrets = await this.paiementResteRepository.manager
+      .getRepository('PaiementPret')
+      .find({ relations: ['paiementsReste'] });
+
+    for (const pret of paiementPrets) {
+      totalRevenue += Number(pret.montantAvance);
+
+      if (pret.paiementsReste?.length) {
+        const resteTotal = pret.paiementsReste.reduce((sum, r) => sum + Number(r.montant), 0);
+        totalRevenue += resteTotal;
+      }
+    }
+
+    return { totalRevenue };
+  }
+
 
 
 
