@@ -36,4 +36,9 @@ export class CommandeMenuController {
   countToday() {
     return this.commandeMenuService.countCommandeMenuToday();
   }
+
+  @Get('statistiques/cuisinier')
+  getStatistiquesCuisinier() {
+    return this.commandeMenuService.getStatistiquesCuisinier();
+  }
 }

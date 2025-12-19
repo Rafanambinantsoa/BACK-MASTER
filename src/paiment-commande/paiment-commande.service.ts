@@ -130,4 +130,102 @@ export class PaimentCommandeService {
 
     return { message: "Paiment Supprimer" }
   }
+
+  /**
+   * Retourne les ventes journalières groupées par heure pour la journée actuelle
+   * @returns {Promise<{ventesParHeure: Array<{hour: string, ventes: number}>}>}
+   */
+  async getVentesJournalieresParHeure() {
+    try {
+      // Début et fin de la journée actuelle
+      const today = new Date();
+      const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 0, 0, 0);
+      const endOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59, 999);
+
+      // Récupérer tous les paiements de la journée
+      const paiements = await this.paiementCommandeRepository
+        .createQueryBuilder('paiement')
+        .where('paiement.createdAt BETWEEN :startOfDay AND :endOfDay', { startOfDay, endOfDay })
+        .getMany();
+
+      // Grouper les ventes par heure
+      const ventesMap: Map<number, number> = new Map();
+
+      for (const paiement of paiements) {
+        if (paiement.createdAt) {
+          const date = new Date(paiement.createdAt);
+          const hour = date.getHours();
+          const montant = Number(paiement.montant) || 0;
+          ventesMap.set(hour, (ventesMap.get(hour) || 0) + montant);
+        }
+      }
+
+      // Générer le résultat pour toutes les heures
+      const ventesParHeure: { hour: string; ventes: number }[] = Array.from({ length: 24 }, (_, hour) => ({
+        hour: `${hour.toString().padStart(2, '0')}h`,
+        ventes: Math.round(ventesMap.get(hour) || 0),
+      }));
+
+      return { ventesParHeure };
+    } catch (error: any) {
+      console.error('Erreur dans getVentesJournalieresParHeure:', error);
+      throw new BadRequestException(
+        `Erreur lors de la récupération des ventes journalières: ${error.message || error}`
+      );
+    }
+  }
+
+  async getVentesSemaine() {
+    try {
+      // Calculer le début et la fin de la semaine (lundi → dimanche)
+      const today = new Date();
+      const dayOfWeek = today.getDay(); // 0 = dimanche, 1 = lundi ...
+      const diffToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+
+      const startOfWeek = new Date(today.getFullYear(), today.getMonth(), today.getDate() + diffToMonday, 0, 0, 0, 0);
+      const endOfWeek = new Date(today.getFullYear(), today.getMonth(), today.getDate() + diffToMonday + 6, 23, 59, 59, 999);
+
+      // Récupérer tous les paiements de la semaine
+      const paiements = await this.paiementCommandeRepository
+        .createQueryBuilder('paiement')
+        .where('paiement.createdAt >= :startOfWeek AND paiement.createdAt <= :endOfWeek', {
+          startOfWeek,
+          endOfWeek,
+        })
+        .getMany();
+
+      // Grouper les ventes par jour
+      const ventesMap = new Map<string, number>();
+      for (const paiement of paiements) {
+        if (paiement.createdAt) {
+          const date = new Date(paiement.createdAt);
+          const dayKey = date.toISOString().slice(0, 10); // YYYY-MM-DD
+          const montant = Number(paiement.montant) || 0;
+          ventesMap.set(dayKey, (ventesMap.get(dayKey) || 0) + montant);
+        }
+      }
+
+      // Générer toutes les dates de la semaine avec format "YYYY-MM-DD"
+      const result: Array<{ date: string; ventes: number }> = [];
+      for (let i = 0; i < 7; i++) {
+        const date = new Date(startOfWeek);
+        date.setDate(startOfWeek.getDate() + i);
+        const dayKey = date.toISOString().slice(0, 10);
+        result.push({
+          date: dayKey,
+          ventes: Math.round(ventesMap.get(dayKey) || 0),
+        });
+      }
+
+      return { ventesParJour: result };
+    } catch (error: any) {
+      console.error('Erreur dans getVentesSemaine:', error);
+      throw new BadRequestException(
+        `Erreur lors de la récupération des ventes de la semaine: ${error.message || error}`,
+      );
+    }
+  }
+
+
+
 }

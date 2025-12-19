@@ -56,10 +56,59 @@ export class CommandeMenuService {
 
   // Nombre de plat en cours today
   // Nombre de plat en attente today
+  async getStatistiquesCuisinier() {
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
 
-  // async dashBoard () {
-  //   //
-  //   const nombrePa
-  // }
+    const endOfDay = new Date();
+    endOfDay.setHours(23, 59, 59, 999);
+
+    const rows = await this.cM
+      .createQueryBuilder('cm')
+      .leftJoin('cm.menu', 'menu')
+      .leftJoin('menu.type_menu', 'type_menu')
+      .select([
+        'LOWER(type_menu.nom) AS specialite',
+        'cm.status AS status',
+        'SUM(cm.quantity) AS total',
+      ])
+      .where('cm.createdAt BETWEEN :start AND :end', { start: startOfDay, end: endOfDay })
+      .groupBy('specialite')
+      .addGroupBy('cm.status')
+      .getRawMany();
+
+    const result = {
+      platsPreparés: 0,
+      platsEnCours: 0,
+      platsEnAttente: 0,
+      platsParSpecialite: {},
+    };
+
+    for (const row of rows) {
+      const specialite = row.specialite;
+      const status = row.status;
+      const total = Number(row.total);
+
+      if (!result.platsParSpecialite[specialite]) {
+        result.platsParSpecialite[specialite] = { enAttente: 0, enCours: 0 };
+      }
+
+      if (['pret', 'terminer'].includes(status)) {
+        result.platsPreparés += total;
+      }
+
+      if (['en_preparation', 'en_cours'].includes(status)) {
+        result.platsEnCours += total;
+        result.platsParSpecialite[specialite].enCours += total;
+      }
+
+      if (status === 'en_attente') {
+        result.platsEnAttente += total;
+        result.platsParSpecialite[specialite].enAttente += total;
+      }
+    }
+
+    return result;
+  }
 
 }

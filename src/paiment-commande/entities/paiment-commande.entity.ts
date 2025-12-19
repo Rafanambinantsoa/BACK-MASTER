@@ -25,6 +25,9 @@ export class PaimentCommande {
     @Column()
     montant: number;
 
+    @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
+    createdAt: Date;
+
     @ManyToOne(() => Commande, (commande) => commande.paimentCommandes, { eager: true })
     @JoinColumn({ name: 'commande_id' }) // précise la colonne FK
     commande: Commande;

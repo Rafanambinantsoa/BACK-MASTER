@@ -21,6 +21,18 @@ export class PaimentCommandeController {
   }
 
   @UseGuards(JwtAuthGuard)
+  @Get('ventes-journalieres')
+  getVentesJournalieresParHeure() {
+    return this.paimentCommandeService.getVentesJournalieresParHeure();
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('ventes-semaine')
+  getVentesSemaine() {
+    return this.paimentCommandeService.getVentesSemaine();
+  }
+
+  @UseGuards(JwtAuthGuard)
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.paimentCommandeService.findOne(+id);
