@@ -85,4 +85,10 @@ export class CommandeController {
   createFromReservation(@Body() dto: CreateCommandeFromReservationDto) {
     return this.commandeService.createFromExistingReservation(dto);
   }
+
+  //nombre de commande par utilisateur
+  @Get('count/user/:userId')
+  countCommandesByUser(@Param('userId') userId: string) {
+    return this.commandeService.countCommandesByUserToday(+userId);
+  }
 }

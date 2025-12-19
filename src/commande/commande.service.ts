@@ -645,6 +645,22 @@ export class CommandeService {
     }
   }
 
+  //nombre de commandes total d;un serveur dans la journee
+  async countCommandesByUserToday(userId: number) {
+    const today = new Date();
+    const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    const endOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1);
+
+    const count = await this.commandeRepo.count({
+      where: {
+        user: { id: userId },
+        date_commande: In([startOfDay, endOfDay]),
+      },
+    });
+
+    return { commandesByUserTodayCount: count };
+  }
+
 
 
 
