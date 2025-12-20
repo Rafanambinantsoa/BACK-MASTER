@@ -4,16 +4,20 @@ import { UpdateClientDto } from './dto/update-client.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Client } from './entities/client.entity';
 import { Repository } from 'typeorm';
+import { PusherService } from '../pusher/pusher.service';
 
 @Injectable()
 export class ClientService {
   constructor(
     @InjectRepository(Client)
     private clientRepository: Repository<Client>,
+    private pusherService: PusherService,
   ) { }
   async create(createClientDto: CreateClientDto) {
     const client = await this.clientRepository.create(createClientDto);
-    return await this.clientRepository.save(client);
+    const savedClient = await this.clientRepository.save(client);
+    await this.pusherService.trigger('clients', 'new-client', savedClient);
+    return savedClient;
   }
 
   async findAll() {
@@ -36,7 +40,9 @@ export class ClientService {
     }
 
     const result = await this.clientRepository.merge(data, updateClientDto);
-    return await this.clientRepository.save(result);
+    const updatedClient = await this.clientRepository.save(result);
+    await this.pusherService.trigger('clients', 'update-client', updatedClient);
+    return updatedClient;
   }
 
   async remove(id: number) {
@@ -46,7 +52,7 @@ export class ClientService {
     }
 
     await this.clientRepository.delete(id);
-
+    await this.pusherService.trigger('clients', 'delete-client', { id, nom: data.nom });
     return { message: "Client Supprimé" }
   }
 }
