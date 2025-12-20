@@ -29,11 +29,11 @@ import { PusherModule } from './pusher/pusher.module';
 
 @Module({
   imports: [
+    ConfigModule.forRoot({ isGlobal: true, envFilePath: join(process.cwd(), '.env') }),
     ServeStaticModule.forRoot({
       rootPath: join(__dirname, '..', 'uploads'), // dossier à exposer
       serveRoot: '/uploads', // l’URL de base publique
     }),
-    ConfigModule.forRoot({ isGlobal: true }),
     TypeOrmModule.forRoot({
       type: 'mysql',
       host: 'auth-db1318.hstgr.io',
