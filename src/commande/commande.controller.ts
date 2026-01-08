@@ -91,4 +91,10 @@ export class CommandeController {
   countCommandesByUser(@Param('userId') userId: string) {
     return this.commandeService.countCommandesByUserToday(+userId);
   }
+
+  @Post(':id/notify-server')
+  async notifyServer(@Param('id') id: string) {
+    await this.commandeService.notifyServer(+id);
+    return { message: `Order ${id} notified to server` };
+  }
 }

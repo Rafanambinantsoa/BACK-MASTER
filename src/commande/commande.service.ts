@@ -13,6 +13,7 @@ import { ReservationTable } from 'src/reservation-table/entities/reservation-tab
 import { UpdateCommandeMenuStatusDto } from './dto/update-commande-menu-status.dto';
 import { PaiementPret } from 'src/paiement-pret/entities/paiement-pret.entity';
 import { CreateCommandeFromReservationDto } from './dto/CreateCommandeFromReservationDto.dto';
+import { PusherService } from '../pusher/pusher.service';
 
 @Injectable()
 export class CommandeService {
@@ -43,6 +44,7 @@ export class CommandeService {
 
     @InjectRepository(PaiementPret)
     private paiementPretRepository: Repository<PaiementPret>,
+    private readonly pusherService: PusherService,
   ) { }
 
   async create(dto: CreateCommandeDto) {
@@ -661,8 +663,17 @@ export class CommandeService {
     return { commandesByUserTodayCount: count };
   }
 
+  async notifyServer(commandeId: number) {
+    const commande = await this.commandeRepo.findOne({ where: { id: commandeId } });
+    if (!commande) {
+      throw new NotFoundException(`Commande with ID ${commandeId} not found`);
+    }
 
-
-
-
+    // Trigger a Pusher event for the Flutter app
+    await this.pusherService.trigger('server-notifications', 'order-ready', {
+      commandeId: commande.id,
+      reference: commande.reference,
+      // You can include more order details here if needed
+    });
+  }
 }
