@@ -91,4 +91,10 @@ export class CommandeController {
   countCommandesByUser(@Param('userId') userId: string) {
     return this.commandeService.countCommandesByUserToday(+userId);
   }
+
+  //Notification pusher pour commande terminée
+  @Get('notify/completed/:commandeId')
+  async notifyCommandeCompleted(@Param('commandeId') commandeId: string) {
+    return this.commandeService.notifyCommandeTerminer(+commandeId);
+  }
 }

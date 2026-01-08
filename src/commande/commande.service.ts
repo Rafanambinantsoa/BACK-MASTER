@@ -665,8 +665,23 @@ export class CommandeService {
     return { commandesByUserTodayCount: count };
   }
 
+  async notifyCommandeTerminer(commandeId: number) {
+    const commande = await this.commandeRepo.findOne({ where: { id: commandeId } });
+    if (!commande) {
+      throw new NotFoundException('Commande introuvable');
+    }
+
+    await this.pusherService.trigger('commandes', 'commande-terminer', {
+      commandeId: commande.id,
+      reference: commande.reference,
+      message: 'La commande est terminée et prête à être servie.',
+    });
+
+    return {
+      message: 'Notification envoyée pour la commande terminée',
+    };
 
 
-
+  }
 
 }
