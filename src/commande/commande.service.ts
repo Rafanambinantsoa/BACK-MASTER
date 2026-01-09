@@ -674,7 +674,7 @@ export class CommandeService {
     await this.pusherService.trigger('commandes', 'commande-terminer', {
       commandeId: commande.id,
       reference: commande.reference,
-      message: 'La commande est terminée et prête à être servie.',
+      message: `La commande ${commande.id} est terminée et prête à être servie. Un serveur disponible peut venir la récupérer.`,
     });
 
     return {
