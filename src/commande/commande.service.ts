@@ -115,6 +115,14 @@ export class CommandeService {
       });
       const savedCommande = await queryRunner.manager.save(Commande, commande);
 
+      //notification reference
+      await this.pusherService.trigger('cuisine', 'commande-a-preparer', {
+        commandeId: commande.id,
+        reference: commande.reference,
+        message: `Nouvelle commande ${commande.reference} créée. Préparation requise.`,
+        createdAt: new Date().toISOString(),
+      });
+
       savedCommande.reference = `COM-${savedCommande.id}`;
       await queryRunner.manager.update(Commande, savedCommande.id, { reference: savedCommande.reference });
 
