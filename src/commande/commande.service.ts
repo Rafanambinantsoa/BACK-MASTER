@@ -487,6 +487,16 @@ export class CommandeService {
         relations: ['commandeMenu.menu'],
       });
 
+      if (updatedCommande) {
+        await this.pusherService.trigger('cuisine', 'commande-mise-a-jour', {
+          commandeId: updatedCommande.id,
+          reference: updatedCommande.reference,
+          message: `La commande COM-${updatedCommande.id} a été mise à jour. Merci de vérifier.`,
+          updatedAt: new Date().toISOString(),
+        });
+      }
+
+
       return {
         message: 'Menus de la commande mis à jour avec succès',
         commande: updatedCommande,
