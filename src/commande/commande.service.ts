@@ -119,7 +119,7 @@ export class CommandeService {
       await this.pusherService.trigger('cuisine', 'commande-a-preparer', {
         commandeId: commande.id,
         reference: commande.reference,
-        message: `Nouvelle commande ${commande.reference} créée. Préparation requise.`,
+        message: `Nouvelle commande COM-${commande.id} créée. Préparation requise.`,
         createdAt: new Date().toISOString(),
       });
 
