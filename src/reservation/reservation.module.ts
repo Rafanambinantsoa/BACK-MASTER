@@ -10,14 +10,16 @@ import { ReservationMenu } from 'src/reservation-menu/entities/reservation-menu.
 import { Menu } from 'src/menu/entities/menu.entity';
 import { PaimentReservationTable } from 'src/paiment-reservation-table/entities/paiment-reservation-table.entity';
 import { StripeModule } from 'src/stripe/stripe.module';
+import { MailModule } from 'src/mail/mail.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([Reservation, Client, ReservationTable, Table, ReservationMenu, Menu, PaimentReservationTable]),
-    forwardRef(() => StripeModule)
+    forwardRef(() => StripeModule),
+    MailModule,
   ],
   controllers: [ReservationController],
   providers: [ReservationService],
-  exports: [ReservationService], // Exporté pour être utilisé dans StripeModule
+  exports: [ReservationService],
 })
 export class ReservationModule { }

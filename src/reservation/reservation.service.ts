@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, InternalServerErrorException, NotFoundException, Inject, forwardRef } from '@nestjs/common';
+import { BadRequestException, Injectable, InternalServerErrorException, Logger, NotFoundException, Inject, forwardRef } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In, DataSource, Between } from 'typeorm';
 import { Reservation } from './entities/reservation.entity';
@@ -12,9 +12,29 @@ import { Menu } from 'src/menu/entities/menu.entity';
 import { ReservationMenu } from 'src/reservation-menu/entities/reservation-menu.entity';
 import { PaimentReservationTable } from 'src/paiment-reservation-table/entities/paiment-reservation-table.entity';
 import { StripeService } from 'src/stripe/stripe.service';
+import { MailService } from 'src/mail/mail.service';
+
+const formatPrix = (value: number) =>
+  new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'MGA', minimumFractionDigits: 0 }).format(value);
+
+const STATUS_LABELS: Record<string, string> = {
+  en_attente: 'En attente',
+  confirmée: 'Confirmée',
+  payée: 'Payée',
+  annulée: 'Annulée',
+};
+
+const PAYMENT_TYPE_LABELS: Record<string, string> = {
+  stripe: 'Carte (Stripe)',
+  mobile_money: 'Mobile Money',
+  especes: 'Espèces',
+  virement: 'Virement',
+};
 
 @Injectable()
 export class ReservationService {
+  private readonly logger = new Logger(ReservationService.name);
+
   constructor(
     @Inject(forwardRef(() => StripeService))
     private readonly stripeService: StripeService,
@@ -33,7 +53,9 @@ export class ReservationService {
     @InjectRepository(ReservationMenu)
     private reservationMenuRepository: Repository<ReservationMenu>,
     @InjectRepository(PaimentReservationTable)
-    private paimentReservationTableRepository: Repository<PaimentReservationTable>
+    private paimentReservationTableRepository: Repository<PaimentReservationTable>,
+
+    private mailService: MailService,
   ) { }
 
   async create(dto: CreateReservationDto) {
@@ -118,7 +140,7 @@ export class ReservationService {
       }
 
       // ===== RESERVATION =====
-      const reservation = queryRunner.manager.create(Reservation, {
+      const reservationEntity = queryRunner.manager.create(Reservation, {
         ...data,
         client,
         date,
@@ -128,7 +150,7 @@ export class ReservationService {
         code,
       });
 
-      const saved = await queryRunner.manager.save(Reservation, reservation);
+      const saved = await queryRunner.manager.save(Reservation, reservationEntity);
 
       // ===== RESERVATION TABLES =====
       const tables = await queryRunner.manager.findBy(Table, { id: In(tableIds) });
@@ -218,16 +240,32 @@ export class ReservationService {
 
       await queryRunner.commitTransaction();
 
+      const reservation = await this.reservationRepository.findOne({
+        where: { id: saved.id },
+        relations: [
+          'client',
+          'reservationTables.table',
+          'reservationMenus.menu',
+          'paimentReservationTable',
+        ],
+      });
+
+      if (!reservation) {
+        throw new InternalServerErrorException('Réservation créée mais introuvable');
+      }
+
+      const clientEmail = reservation.client?.email?.trim();
+      if (clientEmail) {
+        const ctx = this.buildReservationEmailContext(reservation);
+        this.mailService
+          .sendDetailReservation(clientEmail, ctx)
+          .catch((err) =>
+            this.logger.warn(`Envoi email "détail réservation" échoué: ${(err as Error)?.message}`),
+          );
+      }
+
       return {
-        reservation: await this.reservationRepository.findOne({
-          where: { id: saved.id },
-          relations: [
-            'client',
-            'reservationTables.table',
-            'reservationMenus.menu',
-            'paimentReservationTable',
-          ],
-        }),
+        reservation,
         stripeClientSecret,
       };
 
@@ -237,6 +275,86 @@ export class ReservationService {
     } finally {
       await queryRunner.release();
     }
+  }
+
+  private buildReservationEmailContext(reservation: Reservation): Record<string, unknown> {
+    const client = reservation.client;
+    const dateReservation = reservation.date
+      ? new Date(reservation.date).toLocaleDateString('fr-FR', {
+          day: '2-digit',
+          month: '2-digit',
+          year: 'numeric',
+        })
+      : '—';
+
+    const typeReservationLabel =
+      reservation.type_reservation === 'standard'
+        ? 'Réservation simple (table)'
+        : 'Réservation avec menus';
+
+    const statusLabel = STATUS_LABELS[reservation.status] ?? reservation.status ?? 'En attente';
+
+    const tablesList = (reservation.reservationTables ?? [])
+      .map((rt) => rt.table?.numero_table)
+      .filter(Boolean)
+      .join(', ') || '—';
+
+    const hasMenus =
+      reservation.type_reservation !== 'standard' &&
+      reservation.reservationMenus?.length > 0;
+
+    let menuItems: { nom: string; quantity: number; prixUnitaireStr: string; sousTotalStr: string }[] = [];
+    let totalMenusStr = '—';
+    if (hasMenus && reservation.reservationMenus) {
+      let totalMenus = 0;
+      menuItems = reservation.reservationMenus.map((rm) => {
+        const menu = rm.menu;
+        const qty = rm.quantity ?? 1;
+        const prix = Number(menu?.prix ?? 0);
+        const sousTotal = qty * prix;
+        totalMenus += sousTotal;
+        return {
+          nom: menu?.nom ?? 'Menu',
+          quantity: qty,
+          prixUnitaireStr: formatPrix(prix),
+          sousTotalStr: formatPrix(sousTotal),
+        };
+      });
+      totalMenusStr = formatPrix(totalMenus);
+    }
+
+    const payment = reservation.paimentReservationTable;
+    const hasPayment = !!payment;
+
+    let paymentTypeLabel = '';
+    let paymentMontantStr = '';
+    let paymentReference = '';
+    if (hasPayment && payment) {
+      paymentTypeLabel = PAYMENT_TYPE_LABELS[payment.type_paiment] ?? payment.type_paiment;
+      paymentMontantStr = formatPrix(Number(payment.montant ?? 0));
+      paymentReference = payment.reference ?? '';
+    }
+
+    return {
+      clientName: client?.nom ?? '—',
+      clientEmail: client?.email ?? '—',
+      clientTelephone: client?.telephone ?? '',
+      clientAdresse: client?.adresse ?? '',
+      dateReservation,
+      heureDebut: reservation.heure_debut ?? '—',
+      heureFin: reservation.heure_fin ?? '—',
+      typeReservationLabel,
+      statusLabel,
+      code: reservation.code ?? '',
+      tablesList,
+      hasMenus,
+      menuItems,
+      totalMenusStr,
+      hasPayment,
+      paymentTypeLabel,
+      paymentMontantStr,
+      paymentReference,
+    };
   }
 
 

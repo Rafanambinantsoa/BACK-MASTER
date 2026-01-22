@@ -101,6 +101,37 @@ export class MailService {
   }
 
   /**
+   * Envoi asynchrone (fire-and-forget) : détail de la réservation au client.
+   * N'interrompt jamais le flux appelant ; les erreurs sont loguées.
+   */
+  async sendDetailReservation(to: string, context: Record<string, unknown>): Promise<void> {
+    const smtpHost = this.configService.get<string>('SMTP_HOST');
+    if (!smtpHost) {
+      this.logger.warn(
+        `Email "détail réservation" non envoyé à ${to} : SMTP non configuré. ` +
+        'Ajoutez SMTP_HOST, SMTP_USER, SMTP_PASS dans .env.',
+      );
+      return;
+    }
+
+    try {
+      await this.mailerService.sendMail({
+        to,
+        subject: 'Détail de votre réservation – Restaurant OS',
+        template: './detail-reservation',
+        context,
+      });
+      this.logger.log(`Email "détail réservation" envoyé à ${to}`);
+    } catch (err: unknown) {
+      const code = (err as { code?: string })?.code;
+      const msg = (err as Error)?.message;
+      this.logger.warn(
+        `Envoi email "détail réservation" échoué pour ${to}: ${code ?? 'unknown'} - ${msg ?? err}`,
+      );
+    }
+  }
+
+  /**
    * Envoi asynchrone (fire-and-forget) : compte créé + identifiants + lien login.
    * N'interrompt jamais le flux appelant ; les erreurs sont loguées.
    */
