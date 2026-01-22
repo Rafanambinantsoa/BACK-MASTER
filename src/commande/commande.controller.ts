@@ -4,7 +4,6 @@ import { CreateCommandeDto } from './dto/create-commande.dto';
 import { UpdateCommandeDto } from './dto/update-commande.dto';
 import { UpdateCommandeMenuStatusDto } from './dto/update-commande-menu-status.dto';
 import { UpdateCommandeMenusDto } from './dto/update-commande-menus.dto';
-import { get } from 'http';
 import { CreateCommandeFromReservationDto } from './dto/CreateCommandeFromReservationDto.dto';
 
 @Controller('commande')
@@ -96,5 +95,11 @@ export class CommandeController {
   @Get('notify/completed/:commandeId')
   async notifyCommandeCompleted(@Param('commandeId') commandeId: string) {
     return this.commandeService.notifyCommandeTerminer(+commandeId);
+  }
+
+  /** Envoie la facture / récapitulatif de la commande au client par email. */
+  @Post(':id/envoyer-facture')
+  async envoyerFacture(@Param('id') id: string) {
+    return this.commandeService.envoyerFactureAuClient(+id);
   }
 }

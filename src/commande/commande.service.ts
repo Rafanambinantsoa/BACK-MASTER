@@ -14,6 +14,10 @@ import { UpdateCommandeMenuStatusDto } from './dto/update-commande-menu-status.d
 import { PaiementPret } from 'src/paiement-pret/entities/paiement-pret.entity';
 import { CreateCommandeFromReservationDto } from './dto/CreateCommandeFromReservationDto.dto';
 import { PusherService } from 'src/pusher/pusher.service';
+import { MailService } from 'src/mail/mail.service';
+
+const formatPrix = (value: number) =>
+  new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'MGA', minimumFractionDigits: 0 }).format(value);
 
 @Injectable()
 export class CommandeService {
@@ -46,7 +50,7 @@ export class CommandeService {
     private paiementPretRepository: Repository<PaiementPret>,
 
     private pusherService: PusherService,
-
+    private mailService: MailService,
   ) { }
 
   async create(dto: CreateCommandeDto) {
@@ -698,8 +702,67 @@ export class CommandeService {
     return {
       message: 'Notification envoyée pour la commande terminée',
     };
-
-
   }
 
+  /**
+   * Envoie le récapitulatif / facture de la commande au client par email.
+   * Charge la commande avec reservation.client et commandeMenu.menu.
+   */
+  async envoyerFactureAuClient(commandeId: number) {
+    const commande = await this.commandeRepo.findOne({
+      where: { id: commandeId },
+      relations: ['reservation', 'reservation.client', 'commandeMenu', 'commandeMenu.menu'],
+    });
+
+    if (!commande) {
+      throw new NotFoundException('Commande introuvable');
+    }
+
+    const client = commande.reservation?.client;
+    if (!client?.email?.trim()) {
+      throw new BadRequestException(
+        'Impossible d\'envoyer la facture : le client n\'a pas d\'adresse email associée à cette commande.',
+      );
+    }
+
+    const items = (commande.commandeMenu ?? []).map((cm) => {
+      const menu = cm.menu;
+      const qty = cm.quantity ?? 1;
+      const prix = Number(menu?.prix ?? 0);
+      const sousTotal = qty * prix;
+      return {
+        nom: menu?.nom ?? 'Article',
+        quantity: qty,
+        prixUnitaireStr: formatPrix(prix),
+        sousTotalStr: formatPrix(sousTotal),
+      };
+    });
+
+    const dateCommande = commande.date_commande
+      ? new Date(commande.date_commande).toLocaleDateString('fr-FR', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      })
+      : '—';
+
+    const totalStr = formatPrix(Number(commande.total_price ?? 0));
+    const reference = commande.reference ?? `COM-${commande.id}`;
+
+    await this.mailService.sendFactureCommande(
+      client.email.trim(),
+      client.nom ?? 'Client',
+      reference,
+      dateCommande,
+      items,
+      totalStr,
+    );
+
+    return {
+      message: `Facture envoyée par email à ${client.email}`,
+      reference,
+    };
+  }
 }

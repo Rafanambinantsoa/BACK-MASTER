@@ -61,6 +61,46 @@ export class MailService {
   }
 
   /**
+   * Envoie la facture / récapitulatif d'une commande au client par email.
+   * @param to Email du client
+   * @param clientName Nom du client
+   * @param reference Ex. COM-000001
+   * @param dateCommande Date formatée (ex. 22/01/2026)
+   * @param items Lignes { nom, quantity, prixUnitaireStr, sousTotalStr }
+   * @param totalStr Total formaté (ex. "45,00 €")
+   */
+  async sendFactureCommande(
+    to: string,
+    clientName: string,
+    reference: string,
+    dateCommande: string,
+    items: { nom: string; quantity: number; prixUnitaireStr: string; sousTotalStr: string }[],
+    totalStr: string,
+  ) {
+    const smtpHost = this.configService.get<string>('SMTP_HOST');
+    if (!smtpHost) {
+      throw new BadRequestException(
+        'SMTP non configuré. Définissez SMTP_HOST, SMTP_USER, SMTP_PASS dans .env pour envoyer des factures.',
+      );
+    }
+
+    return this.sendMailSafe(() =>
+      this.mailerService.sendMail({
+        to,
+        subject: `Facture ${reference} – Restaurant OS`,
+        template: './facture-commande',
+        context: {
+          clientName,
+          reference,
+          dateCommande,
+          items,
+          totalStr,
+        },
+      }),
+    );
+  }
+
+  /**
    * Envoi asynchrone (fire-and-forget) : compte créé + identifiants + lien login.
    * N'interrompt jamais le flux appelant ; les erreurs sont loguées.
    */
