@@ -3,6 +3,7 @@ import {
   BadRequestException,
   Logger,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { CreateMailDto } from './dto/create-mail.dto';
 import { UpdateMailDto } from './dto/update-mail.dto';
 import { MailerService } from '@nestjs-modules/mailer/dist/mailer.service';
@@ -11,7 +12,10 @@ import { MailerService } from '@nestjs-modules/mailer/dist/mailer.service';
 export class MailService {
   private readonly logger = new Logger(MailService.name);
 
-  constructor(private mailerService: MailerService) { }
+  constructor(
+    private mailerService: MailerService,
+    private configService: ConfigService,
+  ) { }
 
   private async sendMailSafe<T>(fn: () => Promise<T>): Promise<T> {
     try {
@@ -66,6 +70,15 @@ export class MailService {
     tempPassword: string,
     loginUrl: string,
   ): Promise<void> {
+    const smtpHost = this.configService.get<string>('SMTP_HOST');
+    if (!smtpHost) {
+      this.logger.warn(
+        `Email "compte créé" non envoyé à ${email} : SMTP non configuré. ` +
+        'Ajoutez SMTP_HOST, SMTP_USER, SMTP_PASS (et optionnellement SMTP_PORT, SMTP_SECURE) dans .env.',
+      );
+      return;
+    }
+
     try {
       await this.mailerService.sendMail({
         to: email,

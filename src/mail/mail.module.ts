@@ -1,10 +1,12 @@
-import { Module } from '@nestjs/common';
+import { Logger, Module } from '@nestjs/common';
 import { MailService } from './mail.service';
 import { MailController } from './mail.controller';
 import { MailerModule } from '@nestjs-modules/mailer';
 import { HandlebarsAdapter } from '@nestjs-modules/mailer/dist/adapters/handlebars.adapter';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { join } from 'path';
+
+const mailLogger = new Logger('MailModule');
 
 @Module({
   imports: [
@@ -24,6 +26,13 @@ import { join } from 'path';
             },
           }
           : { jsonTransport: true };
+
+        if (!smtpHost) {
+          mailLogger.warn(
+            'SMTP non configuré (SMTP_HOST manquant dans .env) → aucun email réel ne sera envoyé. ' +
+            'Définissez SMTP_HOST, SMTP_USER, SMTP_PASS pour envoyer de vrais emails.',
+          );
+        }
 
         return {
           transport,
