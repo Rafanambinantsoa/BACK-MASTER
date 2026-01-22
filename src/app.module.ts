@@ -26,6 +26,7 @@ import { PaimentResteModule } from './paiment-reste/paiment-reste.module';
 import { StripeModule } from './stripe/stripe.module';
 import { StripeWebhookMiddleware } from './stripe/stripe-webhook.middleware';
 import { PusherModule } from './pusher/pusher.module';
+import { MailModule } from './mail/mail.module';
 
 @Module({
   imports: [
@@ -64,6 +65,7 @@ import { PusherModule } from './pusher/pusher.module';
     PaimentResteModule,
     StripeModule,
     PusherModule,
+    MailModule,
   ],
   controllers: [AppController],
   providers: [AppService],
