@@ -1,21 +1,23 @@
-import { ForbiddenException, Injectable } from '@nestjs/common';
+import { ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { User } from './entities/user.entity';
 import { Repository } from 'typeorm';
-import { NotFoundException } from '@nestjs/common';
 import { Role } from 'src/role/entities/role.entity';
 import { UserTypeMenu } from 'src/userTypeMenu/user-type-menu.entity';
 import { TypeMenu } from 'src/type_menu/entities/type_menu.entity';
 import { Table } from 'src/table/entities/table.entity';
 import { PaimentCommande } from 'src/paiment-commande/entities/paiment-commande.entity';
 import { PaiementReste } from 'src/paiment-reste/entities/paiment-reste.entity';
+import { ConfigService } from '@nestjs/config';
+import { MailService } from 'src/mail/mail.service';
 import * as bcrypt from 'bcrypt';
-
 
 @Injectable()
 export class UserService {
+  private readonly logger = new Logger(UserService.name);
+
   constructor(
     @InjectRepository(User)
     private userRepository: Repository<User>,
@@ -37,48 +39,59 @@ export class UserService {
 
     @InjectRepository(PaiementReste)
     private paiementResteRepository: Repository<PaiementReste>,
+
+    private configService: ConfigService,
+    private mailService: MailService,
   ) { }
 
   async create(createUserDto: CreateUserDto) {
-    // Vérifier si le role_id existe
     const role = await this.roleRepository.findOneBy({ id: createUserDto.role_id });
     if (!role) {
       throw new NotFoundException("Role inexistant");
     }
 
-    //Verification email doublon
     const checkemail = await this.userRepository.findOneBy({ email: createUserDto.email });
     if (checkemail) {
-      throw new ForbiddenException("Email deja existant")
-    };
+      throw new ForbiddenException("Email deja existant");
+    }
 
-    // Créer l'utilisateur
-    const user = this.userRepository.create(createUserDto);
+    const plainPassword = createUserDto.password;
+    const hashedPassword = await bcrypt.hash(plainPassword, 10);
+
+    const user = this.userRepository.create({
+      ...createUserDto,
+      password: hashedPassword,
+    });
     const savedUser = await this.userRepository.save(user);
 
-    // Assigner les spécialités (typeMenuIds)
     if (createUserDto.typeMenuIds && createUserDto.typeMenuIds.length > 0) {
       const userTypeMenus: UserTypeMenu[] = [];
-
-      // Utiliser forEach avec Promise.all
       const promises = createUserDto.typeMenuIds.map(async (typeMenuId) => {
         const typeMenu = await this.typeMenuRepository.findOneBy({ id: typeMenuId });
-        if (!typeMenu) return; // ignorer les ids invalides
+        if (!typeMenu) return;
         const userTypeMenu = this.userTypeMenuRepository.create({
           user: savedUser,
-          typeMenu: typeMenu,
+          typeMenu,
         });
         userTypeMenus.push(userTypeMenu);
       });
-
       await Promise.all(promises);
-
       if (userTypeMenus.length > 0) {
         await this.userTypeMenuRepository.save(userTypeMenus);
       }
     }
 
-    // Retourner l'utilisateur avec ses spécialités
+    const loginUrl =
+      this.configService.get<string>('APP_LOGIN_URL') ??
+      this.configService.get<string>('BASE_URL') ??
+      'http://localhost:3000';
+
+    this.mailService
+      .sendAccountCreated(savedUser.email, savedUser.nom, plainPassword, loginUrl)
+      .catch((err) =>
+        this.logger.warn(`Envoi email "compte créé" en arrière-plan échoué: ${(err as Error)?.message}`),
+      );
+
     return this.userRepository.findOne({
       where: { id: savedUser.id },
       relations: ['userTypeMenus.typeMenu'],

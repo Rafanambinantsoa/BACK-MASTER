@@ -28,11 +28,7 @@ export class AuthService {
     }
 
     async register(createUserDto: CreateUserDto) {
-        const hashedPassword = await bcrypt.hash(createUserDto.password, 10);
-        const user = await this.userService.create({
-            ...createUserDto,
-            password: hashedPassword,
-        });
+        const user = await this.userService.create(createUserDto);
         if (!user) {
             throw new UnauthorizedException('Failed to create user');
         }

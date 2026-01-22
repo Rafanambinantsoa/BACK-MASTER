@@ -15,20 +15,20 @@ import { join } from 'path';
         const smtpHost = config.get<string>('SMTP_HOST');
         const transport = smtpHost
           ? {
-              host: smtpHost,
-              port: config.get<number>('SMTP_PORT') ?? 587,
-              secure: config.get<string>('SMTP_SECURE') === 'true',
-              auth: {
-                user: config.get<string>('SMTP_USER'),
-                pass: config.get<string>('SMTP_PASS'),
-              },
-            }
+            host: smtpHost,
+            port: config.get<number>('SMTP_PORT') ?? 587,
+            secure: config.get<string>('SMTP_SECURE') === 'true',
+            auth: {
+              user: config.get<string>('SMTP_USER'),
+              pass: config.get<string>('SMTP_PASS'),
+            },
+          }
           : { jsonTransport: true };
 
         return {
           transport,
           defaults: {
-            from: config.get<string>('MAIL_FROM') ?? '"Mon App" <no-reply@monapp.com>',
+            from: config.get<string>('MAIL_FROM') ?? '"Restaurant OS" <no-reply@monapp.com>',
           },
           template: {
             dir: join(__dirname, 'templates'),
@@ -41,5 +41,6 @@ import { join } from 'path';
   ],
   controllers: [MailController],
   providers: [MailService],
+  exports: [MailService],
 })
-export class MailModule {}
+export class MailModule { }

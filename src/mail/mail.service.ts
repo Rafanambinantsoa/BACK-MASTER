@@ -55,4 +55,36 @@ export class MailService {
       this.mailerService.sendMail({ to, subject, html }),
     );
   }
+
+  /**
+   * Envoi asynchrone (fire-and-forget) : compte créé + identifiants + lien login.
+   * N'interrompt jamais le flux appelant ; les erreurs sont loguées.
+   */
+  async sendAccountCreated(
+    email: string,
+    name: string,
+    tempPassword: string,
+    loginUrl: string,
+  ): Promise<void> {
+    try {
+      await this.mailerService.sendMail({
+        to: email,
+        subject: 'Ton compte Restaurant OS a été créé',
+        template: './compte-cree',
+        context: {
+          name,
+          email,
+          tempPassword,
+          loginUrl,
+        },
+      });
+      this.logger.log(`Email "compte créé" envoyé à ${email}`);
+    } catch (err: unknown) {
+      const code = (err as { code?: string })?.code;
+      const msg = (err as Error)?.message;
+      this.logger.warn(
+        `Envoi email "compte créé" échoué pour ${email}: ${code ?? 'unknown'} - ${msg ?? err}`,
+      );
+    }
+  }
 }

@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Confirme ton email</title>
+    <title>Ton compte a été créé</title>
     <!--[if mso]>
   <noscript>
     <xml>
@@ -60,7 +60,7 @@
                     <!-- Header: View in browser -->
                     <tr>
                         <td align="right" style="padding: 16px 24px 0;">
-                            <a href="{{url}}" style="font-size: 12px; color: #9ca3af;">Voir dans le navigateur</a>
+                            <a href="{{loginUrl}}" style="font-size: 12px; color: #9ca3af;">Voir dans le navigateur</a>
                         </td>
                     </tr>
 
@@ -73,7 +73,7 @@
                         </td>
                     </tr>
 
-                    <!-- Icon (envelope + circles) -->
+                    <!-- Icon -->
                     <tr>
                         <td align="center" style="padding: 24px 24px 8px;">
                             <table role="presentation" align="center" cellspacing="0" cellpadding="0" border="0">
@@ -103,17 +103,36 @@
                     <!-- Heading -->
                     <tr>
                         <td align="center" style="padding: 24px 48px 8px;">
-                            <h1 style="margin: 0; font-size: 24px; font-weight: 700; color: #111827;">Confirme ton email
-                            </h1>
+                            <h1 style="margin: 0; font-size: 24px; font-weight: 700; color: #111827;">Ton compte a été
+                                créé</h1>
                         </td>
                     </tr>
 
                     <!-- Body -->
                     <tr>
-                        <td align="center" style="padding: 8px 48px 24px;">
-                            <p style="margin: 0; font-size: 15px; line-height: 1.6; color: #6b7280;">
-                                Merci de t'être inscrit{{#if name}}, {{name}}{{/if}}. Clique sur le bouton ci-dessous
-                                pour confirmer ton compte et activer ton accès.
+                        <td align="center" style="padding: 8px 48px 16px;">
+                            <p style="margin: 0 0 16px; font-size: 15px; line-height: 1.6; color: #6b7280;">
+                                Bonjour{{#if name}} {{name}}{{/if}}, ton compte Restaurant OS a bien été créé.
+                            </p>
+                            <p style="margin: 0 0 8px; font-size: 15px; line-height: 1.6; color: #6b7280;">
+                                Voici tes identifiants de connexion :
+                            </p>
+                            <table role="presentation" align="center" cellspacing="0" cellpadding="0" border="0"
+                                style="margin: 16px auto; background-color: #f9fafb; border-radius: 6px; border: 1px solid #e5e7eb;">
+                                <tr>
+                                    <td style="padding: 12px 20px; font-size: 14px; color: #374151;">
+                                        <strong>Email :</strong> {{email}}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 12px 20px; font-size: 14px; color: #374151;">
+                                        <strong>Mot de passe temporaire :</strong> {{tempPassword}}
+                                    </td>
+                                </tr>
+                            </table>
+                            <p style="margin: 16px 0 0; font-size: 15px; line-height: 1.6; color: #6b7280;">
+                                Nous t'invitons à <strong>changer ton mot de passe dès ta première connexion</strong> pour
+                                des raisons de sécurité.
                             </p>
                         </td>
                     </tr>
@@ -121,9 +140,9 @@
                     <!-- CTA Button -->
                     <tr>
                         <td align="center" style="padding: 0 48px 32px;">
-                            <a href="{{url}}"
-                                style="display: inline-block; padding: 14px 32px; background-color: #111827; color: #ffffff !important; font-size: 14px; font-weight: 600; letter-spacing: 0.5px; border-radius: 6px; text-decoration: none;">CONFIRMER
-                                MON EMAIL</a>
+                            <a href="{{loginUrl}}"
+                                style="display: inline-block; padding: 14px 32px; background-color: #111827; color: #ffffff !important; font-size: 14px; font-weight: 600; letter-spacing: 0.5px; border-radius: 6px; text-decoration: none;">ACCÉDER
+                                À LA CONNEXION</a>
                         </td>
                     </tr>
 
@@ -143,10 +162,8 @@
                                 </tr>
                                 <tr>
                                     <td align="center" style="font-size: 12px; line-height: 1.5; color: #9ca3af;">
-                                        Cet email t'a été envoyé par Restaurant OS. Tu le reçois car tu t'es inscrit sur
-                                        notre
-                                        plateforme.
-                                        <br>Si tu n'es pas à l'origine de cette inscription, tu peux ignorer ce message.
+                                        Cet email t'a été envoyé par Restaurant OS. Tu le reçois car un compte a été
+                                        créé pour toi sur notre plateforme.
                                     </td>
                                 </tr>
                             </table>
