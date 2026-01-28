@@ -49,7 +49,7 @@ export class PaiementPretService {
 
     const data = await this.paiementPretRepository.save(paiement);
 
-    // pret 
+    // Enregistrer éventuellement un premier paiement du reste (avance)
     if (dto.montantAvance > 0) {
       const paiementReste = this.paiementResteRepository.create({
         paiementPret: data,
@@ -60,8 +60,11 @@ export class PaiementPretService {
       await this.paiementResteRepository.save(paiementReste);
     }
 
-    //Me a  jour la staut de la commande 
-    await this.commandeRepository.update(dto.commandeId, { status: 'pret' });
+    // Mettre à jour le statut de la commande :
+    // - "pret" si le prêt n'est pas encore entièrement réglé
+    // - "payer" si le paiement en prêt est déjà totalement réglé
+    const nouveauStatus = estRegle ? 'payer' : 'pret';
+    await this.commandeRepository.update(dto.commandeId, { status: nouveauStatus });
 
 
 
@@ -114,6 +117,11 @@ export class PaiementPretService {
       reste_a_regler: estRegle ? 0 : nouveauReste,
       estRegle,
     });
+
+    // Si le prêt est maintenant entièrement réglé, on marque la commande comme "payer"
+    if (estRegle) {
+      await this.commandeRepository.update(paiementPret.commandeId, { status: 'payer' });
+    }
 
     return check;
   }
