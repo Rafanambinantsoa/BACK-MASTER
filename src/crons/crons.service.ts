@@ -3,6 +3,7 @@ import { Cron, CronExpression } from '@nestjs/schedule';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Commande } from 'src/commande/entities/commande.entity';
 import { Repository } from 'typeorm';
+import { PusherService } from 'src/pusher/pusher.service';
 
 @Injectable()
 export class TasksService {
@@ -11,6 +12,7 @@ export class TasksService {
     constructor(
         @InjectRepository(Commande)
         private commandeRepo: Repository<Commande>,
+        private pusherService: PusherService,
     ) { }
 
     // Exécution toutes les minutes
@@ -34,6 +36,15 @@ export class TasksService {
                 commande.status = 'terminer';
                 await this.commandeRepo.save(commande);
                 this.logger.log(`Commande ${commande.id} mise à jour en "terminer"`);
+
+                // Notification temps réel côté application serveur (Flutter)
+                // Flutter écoute: channel `server-notifications` + event `order-ready`
+                await this.pusherService.trigger('server-notifications', 'order-ready', {
+                    commandeId: commande.id,
+                    reference: commande.reference,
+                    message: `La commande ${commande.reference ?? commande.id} est prête à être servie.`,
+                    updatedAt: new Date().toISOString(),
+                });
             }
         }
     }
