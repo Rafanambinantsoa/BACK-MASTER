@@ -4,13 +4,15 @@ import { UpdateCommandeMenuDto } from './dto/update-commande-menu.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { CommandeMenu } from './entities/commande-menu.entity';
 import { Repository } from 'typeorm';
+import { PusherService } from 'src/pusher/pusher.service';
 
 @Injectable()
 export class CommandeMenuService {
 
   constructor(
     @InjectRepository(CommandeMenu)
-    private cM: Repository<CommandeMenu>
+    private cM: Repository<CommandeMenu>,
+    private pusherService: PusherService,
   ) { }
 
   create(createCommandeMenuDto: CreateCommandeMenuDto) {
@@ -28,7 +30,26 @@ export class CommandeMenuService {
 
   async update(id: number, updateCommandeMenuDto: UpdateCommandeMenuDto) {
     await this.cM.update(id, updateCommandeMenuDto);
-    return this.cM.findOne({ where: { id } });
+    const updatedCommandeMenu = await this.cM.findOne({
+      where: { id },
+      relations: ['commande'],
+    });
+
+    // Sync temps réel côté cuisine (plats à préparer + dashboard cuisinier)
+    if (updatedCommandeMenu) {
+      const commandeId = updatedCommandeMenu.commande_id;
+      const reference =
+        updatedCommandeMenu.commande?.reference?.trim() || (commandeId ? `COM-${commandeId}` : `COM-${id}`);
+
+      await this.pusherService.trigger('cuisine', 'commande-mise-a-jour', {
+        commandeId,
+        reference,
+        message: `La commande ${reference} a été mise à jour. Merci de vérifier.`,
+        updatedAt: new Date().toISOString(),
+      });
+    }
+
+    return updatedCommandeMenu;
   }
 
   async remove(id: number) {
@@ -77,6 +98,11 @@ export class CommandeMenuService {
       .addGroupBy('cm.status')
       .getRawMany();
 
+    const normalizeStatus = (status: string) => {
+      // Correction typo possible dans la base
+      return status === 'en_atttente' ? 'en_attente' : status;
+    };
+
     const result = {
       platsPreparés: 0,
       platsEnCours: 0,
@@ -86,7 +112,7 @@ export class CommandeMenuService {
 
     for (const row of rows) {
       const specialite = row.specialite;
-      const status = row.status;
+      const status = normalizeStatus(row.status);
       const total = Number(row.total);
 
       if (!result.platsParSpecialite[specialite]) {

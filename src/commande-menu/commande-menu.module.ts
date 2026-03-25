@@ -7,9 +7,10 @@ import { Reservation } from 'src/reservation/entities/reservation.entity';
 import { Menu } from 'src/menu/entities/menu.entity';
 import { Commande } from 'src/commande/entities/commande.entity';
 import { Client } from 'src/client/entities/client.entity';
+import { PusherModule } from 'src/pusher/pusher.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([CommandeMenu, Reservation, Menu, Commande, Client])],
+  imports: [TypeOrmModule.forFeature([CommandeMenu, Reservation, Menu, Commande, Client]), PusherModule],
   controllers: [CommandeMenuController],
   providers: [CommandeMenuService],
 })
