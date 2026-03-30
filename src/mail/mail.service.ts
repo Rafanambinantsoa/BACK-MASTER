@@ -1,24 +1,44 @@
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { Resend } from 'resend';
 import { join } from 'path';
 import * as fs from 'fs';
 import * as Handlebars from 'handlebars';
+import nodemailer from 'nodemailer';
 
 type TemplateContext = Record<string, unknown>;
 
 @Injectable()
 export class MailService {
   private readonly logger = new Logger(MailService.name);
-  private readonly resend?: Resend;
+  private readonly transporter: nodemailer.Transporter;
   private readonly templatesDir: string;
   private readonly templateCache = new Map<string, Handlebars.TemplateDelegate>();
 
   constructor(private readonly configService: ConfigService) {
     const apiKey = this.configService.get<string>('RESEND_API_KEY');
-    if (apiKey) {
-      this.resend = new Resend(apiKey);
+    if (!apiKey) {
+      throw new BadRequestException(
+        'RESEND_API_KEY manquant. Ajoutez la clé Resend dans les variables d\'environnement.',
+      );
     }
+
+    // SMTP Resend: https://resend.com/docs (SMTP)
+    const host = this.configService.get<string>('RESEND_SMTP_HOST') ?? 'smtp.resend.com';
+    const port = Number(this.configService.get<string>('RESEND_SMTP_PORT') ?? 465);
+    const user = this.configService.get<string>('RESEND_SMTP_USER') ?? 'resend';
+
+    this.transporter = nodemailer.createTransport({
+      host,
+      port,
+      secure: port === 465, // SMTPS
+      auth: {
+        user,
+        pass: apiKey, // Resend docs: password = API key
+      },
+      connectionTimeout: 30_000,
+      socketTimeout: 30_000,
+      greetingTimeout: 30_000,
+    });
 
     // Après build, les templates sont copiés dans dist/mail/templates via nest-cli.json assets.
     this.templatesDir = join(__dirname, 'templates');
@@ -54,28 +74,22 @@ export class MailService {
   }
 
   private async sendHtmlEmail(params: { to: string; subject: string; html: string }): Promise<void> {
-    if (!this.resend) {
-      throw new BadRequestException(
-        'RESEND_API_KEY manquant. Ajoutez la clé Resend dans les variables d\'environnement.',
-      );
-    }
-
     try {
-      const result: any = await this.resend.emails.send({
+      await this.transporter.sendMail({
         from: this.getFrom(),
         to: params.to,
         subject: params.subject,
         html: params.html,
       });
-
-      if (result?.error) {
-        const message = result.error?.message ?? 'Erreur Resend inconnue';
-        throw new Error(message);
-      }
     } catch (err: unknown) {
       const message = (err as Error)?.message ?? String(err);
-      this.logger.warn(`Envoi email Resend échoué: ${message}`);
-      throw new BadRequestException(`Échec d'envoi d'email : ${message}`);
+      const code = (err as { code?: string })?.code;
+      const hint =
+        code === 'ETIMEDOUT'
+          ? ' (timeout réseau: vérifie que Render peut sortir vers smtp.resend.com:465)'
+          : '';
+      this.logger.warn(`Envoi email Resend SMTP échoué: ${code ?? 'unknown'} - ${message}${hint}`);
+      throw new BadRequestException(`Échec d'envoi d'email : ${message}${hint}`);
     }
   }
 
