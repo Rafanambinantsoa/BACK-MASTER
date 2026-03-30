@@ -15,17 +15,16 @@ export class MailService {
   private readonly templateCache = new Map<string, Handlebars.TemplateDelegate>();
 
   constructor(private readonly configService: ConfigService) {
-    const apiKey = this.configService.get<string>('RESEND_API_KEY');
-    if (!apiKey) {
+    const host = this.configService.get<string>('SMTP_HOST');
+    const port = Number(this.configService.get<string>('SMTP_PORT') ?? 587);
+    const user = this.configService.get<string>('SMTP_USER');
+    const pass = this.configService.get<string>('SMTP_PASS');
+
+    if (!host || !user || !pass) {
       throw new BadRequestException(
-        'RESEND_API_KEY manquant. Ajoutez la clé Resend dans les variables d\'environnement.',
+        'SMTP manquant. Vérifiez SMTP_HOST, SMTP_USER, SMTP_PASS (et SMTP_PORT si besoin) dans les variables d\'environnement.',
       );
     }
-
-    // SMTP Resend: https://resend.com/docs (SMTP)
-    const host = this.configService.get<string>('RESEND_SMTP_HOST') ?? 'smtp.resend.com';
-    const port = Number(this.configService.get<string>('RESEND_SMTP_PORT') ?? 465);
-    const user = this.configService.get<string>('RESEND_SMTP_USER') ?? 'resend';
 
     this.transporter = nodemailer.createTransport({
       host,
@@ -33,7 +32,7 @@ export class MailService {
       secure: port === 465, // SMTPS
       auth: {
         user,
-        pass: apiKey, // Resend docs: password = API key
+        pass,
       },
       connectionTimeout: 30_000,
       socketTimeout: 30_000,
@@ -45,9 +44,7 @@ export class MailService {
   }
 
   private getFrom(): string {
-    const from =
-      this.configService.get<string>('RESEND_FROM') ||
-      this.configService.get<string>('MAIL_FROM');
+    const from = this.configService.get<string>('MAIL_FROM');
     if (from && from.includes('@')) return from;
 
     const fallback = this.configService.get<string>('SMTP_USER');
@@ -86,9 +83,9 @@ export class MailService {
       const code = (err as { code?: string })?.code;
       const hint =
         code === 'ETIMEDOUT'
-          ? ' (timeout réseau: vérifie que Render peut sortir vers smtp.resend.com:465)'
+          ? ' (timeout réseau: vérifie que le serveur peut sortir vers SMTP)'
           : '';
-      this.logger.warn(`Envoi email Resend SMTP échoué: ${code ?? 'unknown'} - ${message}${hint}`);
+      this.logger.warn(`Envoi email SMTP échoué: ${code ?? 'unknown'} - ${message}${hint}`);
       throw new BadRequestException(`Échec d'envoi d'email : ${message}${hint}`);
     }
   }

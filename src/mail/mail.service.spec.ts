@@ -13,8 +13,11 @@ describe('MailService', () => {
           provide: ConfigService,
           useValue: {
             get: (key: string) => {
-              if (key === 'RESEND_API_KEY') return 're_test';
-              if (key === 'RESEND_FROM') return 'Test Sender <test@example.com>';
+              if (key === 'SMTP_HOST') return 'smtp.gmail.com';
+              if (key === 'SMTP_PORT') return '587';
+              if (key === 'SMTP_USER') return 'test@example.com';
+              if (key === 'SMTP_PASS') return 'test_pass';
+              if (key === 'MAIL_FROM') return 'Test Sender <test@example.com>';
               return undefined;
             },
           },
