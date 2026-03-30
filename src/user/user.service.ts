@@ -1,4 +1,4 @@
-import { ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { ForbiddenException, Injectable, Logger, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -150,7 +150,15 @@ export class UserService {
     }
 
     // Exclure typeMenuIds avant la mise à jour principale
-    const { typeMenuIds, ...userData } = updateUserDto;
+    const { typeMenuIds, ...userData } = updateUserDto as any;
+
+    // Sécurité: si password arrive ici, on le hash (évite stockage en clair)
+    if (typeof userData.password === 'string' && userData.password.trim().length > 0) {
+      userData.password = await bcrypt.hash(userData.password, 10);
+    } else {
+      // Éviter d'écraser le mot de passe avec null/undefined/vide
+      delete userData.password;
+    }
 
     // Mettre à jour les infos principales de l'utilisateur
     await this.userRepository.update(id, userData);
@@ -188,6 +196,23 @@ export class UserService {
       where: { id },
       relations: ['userTypeMenus.typeMenu'],
     });
+  }
+
+  async changePassword(userId: number, currentPassword: string, newPassword: string) {
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+    if (!user) {
+      throw new NotFoundException('Utilisateur inexistant');
+    }
+
+    const ok = await bcrypt.compare(currentPassword, user.password);
+    if (!ok) {
+      throw new UnauthorizedException('Mot de passe actuel invalide');
+    }
+
+    user.password = await bcrypt.hash(newPassword, 10);
+    await this.userRepository.save(user);
+
+    return { message: 'Mot de passe mis à jour.' };
   }
 
 

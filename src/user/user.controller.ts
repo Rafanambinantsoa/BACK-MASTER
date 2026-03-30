@@ -1,8 +1,9 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Req, HttpCode, HttpStatus } from '@nestjs/common';
 import { UserService } from './user.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
+import { ChangePasswordDto } from './dto/change-password.dto';
 
 @Controller('user')
 export class UserController {
@@ -30,6 +31,14 @@ export class UserController {
   @Patch(':id')
   update(@Param('id') id: string, @Body() updateUserDto: UpdateUserDto) {
     return this.userService.update(+id, updateUserDto);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.OK)
+  @Post('me/change-password')
+  changePassword(@Req() req: any, @Body() dto: ChangePasswordDto) {
+    const userId = Number(req?.user?.userId);
+    return this.userService.changePassword(userId, dto.currentPassword, dto.newPassword);
   }
 
   @UseGuards(JwtAuthGuard)

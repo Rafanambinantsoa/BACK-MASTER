@@ -43,7 +43,9 @@ import { MailModule } from './mail/mail.module';
       password: 'U614166417_kim',
       database: 'u614166417_kim',
       autoLoadEntities: true,
-      synchronize: true, // ⚠️ à désactiver en production
+      // ⚠️ synchroniser peut casser au démarrage si le schéma DB diffère.
+      // Pour le reset OTP, on crée la table explicitement côté script/DB.
+      synchronize: false,
     }),
     TasksModule,
     UserModule,

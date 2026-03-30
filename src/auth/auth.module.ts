@@ -6,6 +6,10 @@ import { AuthController } from './auth.controller';
 import { JwtStrategy } from './jwt.strategy';
 import { UserModule } from '../user/user.module'; // si tu as un UserModule
 import { ConfigModule, ConfigService } from '@nestjs/config';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { PasswordResetOtp } from './entities/password-reset-otp.entity';
+import { MailModule } from 'src/mail/mail.module';
+import { User } from 'src/user/entities/user.entity';
 
 @Module({
   imports: [
@@ -20,6 +24,8 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
       }),
     }),
     UserModule,
+    MailModule,
+    TypeOrmModule.forFeature([PasswordResetOtp, User]),
   ],
   controllers: [AuthController],
   providers: [AuthService, JwtStrategy],

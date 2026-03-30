@@ -178,4 +178,34 @@ export class MailService {
       this.logger.warn(`Envoi email "compte créé" échoué pour ${email}: ${message}`);
     }
   }
+
+  /**
+   * Envoi OTP de réinitialisation mot de passe.
+   */
+  async sendPasswordResetOtp(
+    email: string,
+    name: string,
+    otp: string,
+    minutes: number,
+  ): Promise<void> {
+    try {
+      const html = this.renderTemplate('password-reset-otp', {
+        name,
+        otp,
+        minutes,
+      });
+
+      await this.sendHtmlEmail({
+        to: email,
+        subject: 'Code de réinitialisation – Restaurant OS',
+        html,
+      });
+
+      this.logger.log(`Email "password reset otp" envoyé à ${email}`);
+    } catch (err: unknown) {
+      const message = (err as Error)?.message ?? String(err);
+      this.logger.warn(`Envoi email "password reset otp" échoué pour ${email}: ${message}`);
+      throw err;
+    }
+  }
 }
