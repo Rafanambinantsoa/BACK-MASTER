@@ -23,12 +23,18 @@ export class MailService {
     } catch (err: unknown) {
       const code = (err as { code?: string })?.code;
       const response = (err as { response?: string })?.response;
-      this.logger.warn(`Envoi email échoué: ${code ?? 'unknown'} - ${response ?? (err as Error).message}`);
+      const message = (err as Error)?.message ?? String(err);
+      this.logger.warn(`Envoi email échoué: ${code ?? 'unknown'} - ${response ?? message}`);
 
       if (code === 'EAUTH' || (typeof response === 'string' && response.includes('535'))) {
         throw new BadRequestException(
           'Échec SMTP : identifiants invalides. Vérifiez SMTP_USER / SMTP_PASS dans .env. ' +
           'Avec Gmail, utilisez un "Mot de passe d\'application" (compte Google → Sécurité).',
+        );
+      }
+      if (code === 'ETIMEDOUT') {
+        throw new BadRequestException(
+          'Échec SMTP : délai de connexion dépassé (timeout). Vérifie que Render peut joindre SMTP_HOST/SMTP_PORT (pare-feu / restrictions réseau).',
         );
       }
       if (code === 'ESOCKET' || code === 'ECONNREFUSED') {
@@ -37,7 +43,7 @@ export class MailService {
         );
       }
       throw new BadRequestException(
-        `Échec d'envoi d'email : ${(err as Error).message}`,
+        `Échec d'envoi d'email : ${message}`,
       );
     }
   }

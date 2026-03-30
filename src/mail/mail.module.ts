@@ -15,15 +15,31 @@ const mailLogger = new Logger('MailModule');
       inject: [ConfigService],
       useFactory: (config: ConfigService) => {
         const smtpHost = config.get<string>('SMTP_HOST');
+        const smtpPort = config.get<number>('SMTP_PORT') ?? 587;
+        const smtpUser = config.get<string>('SMTP_USER');
+        const smtpPass = config.get<string>('SMTP_PASS');
+        const smtpSecureRaw = config.get<string>('SMTP_SECURE');
+
+        // Gmail: port 587 => STARTTLS (secure=false), port 465 => SMTPS (secure=true)
+        const secure =
+          smtpSecureRaw === 'true' ||
+          (smtpSecureRaw !== 'false' && smtpPort === 465);
+
         const transport = smtpHost
           ? {
             host: smtpHost,
-            port: config.get<number>('SMTP_PORT') ?? 587,
-            secure: config.get<string>('SMTP_SECURE') === 'true',
+            port: smtpPort,
+            secure,
             auth: {
-              user: config.get<string>('SMTP_USER'),
-              pass: config.get<string>('SMTP_PASS'),
+              user: smtpUser,
+              pass: smtpPass,
             },
+            // Timeouts explicites pour éviter les blocages trop longs en prod (Render).
+            connectionTimeout: 30_000,
+            socketTimeout: 30_000,
+            greetingTimeout: 30_000,
+            // Sur port 587, force la négociation STARTTLS avant AUTH.
+            requireTLS: !secure,
           }
           : { jsonTransport: true };
 
@@ -34,10 +50,15 @@ const mailLogger = new Logger('MailModule');
           );
         }
 
+        const configuredMailFrom = config.get<string>('MAIL_FROM');
+        const hasFromEmail = typeof configuredMailFrom === 'string' && configuredMailFrom.includes('@');
+        const fromFallback = smtpUser ? `"Restaurant OS" <${smtpUser}>` : undefined;
+        const defaultsFrom = hasFromEmail ? configuredMailFrom : fromFallback;
+
         return {
           transport,
           defaults: {
-            from: config.get<string>('MAIL_FROM') ?? '"Restaurant OS" <no-reply@monapp.com>',
+            from: defaultsFrom ?? '"Restaurant OS" <no-reply@monapp.com>',
           },
           template: {
             dir: join(__dirname, 'templates'),
