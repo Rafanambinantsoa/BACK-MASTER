@@ -31,6 +31,18 @@ const PAYMENT_TYPE_LABELS: Record<string, string> = {
   virement: 'Virement',
 };
 
+/** Interprète un jour calendrier (YYYY-MM-DD ou ISO) sans décalage UTC → local erroné. */
+function parseCalendarDate(date: Date | string): Date {
+  const s = typeof date === 'string' ? date : date.toISOString();
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(s).trim());
+  if (m) {
+    return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+  }
+  const fallback = new Date(date);
+  fallback.setHours(0, 0, 0, 0);
+  return fallback;
+}
+
 @Injectable()
 export class ReservationService {
   private readonly logger = new Logger(ReservationService.name);
@@ -573,9 +585,8 @@ export class ReservationService {
 
     // Vérifier que la date n’est pas dans le passé (on autorise uniquement aujourd’hui et après)
     const aujourdHui = new Date();
-    const dateSansHeure = new Date(date);
-    dateSansHeure.setHours(0, 0, 0, 0);
     aujourdHui.setHours(0, 0, 0, 0);
+    const dateSansHeure = parseCalendarDate(date);
 
     if (dateSansHeure < aujourdHui)
       throw new BadRequestException('La date ne peut pas être dans le passé');
@@ -616,9 +627,8 @@ export class ReservationService {
     const formatHeure = /^([01]\d|2[0-3]):(00|30)$/;
 
     const aujourdHui = new Date();
-    const dateSansHeure = new Date(date);
     aujourdHui.setHours(0, 0, 0, 0);
-    dateSansHeure.setHours(0, 0, 0, 0);
+    const dateSansHeure = parseCalendarDate(date);
 
     if (dateSansHeure < aujourdHui)
       throw new BadRequestException('La date ne peut pas être dans le passé');
