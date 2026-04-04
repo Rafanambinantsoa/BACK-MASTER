@@ -31,16 +31,16 @@ const PAYMENT_TYPE_LABELS: Record<string, string> = {
   virement: 'Virement',
 };
 
-/** Interprète un jour calendrier (YYYY-MM-DD ou ISO) sans décalage UTC → local erroné. */
 function parseCalendarDate(date: Date | string): Date {
-  const s = typeof date === 'string' ? date : date.toISOString();
-  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(s).trim());
-  if (m) {
-    return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+  if (typeof date === 'string') {
+    const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(date.trim());
+    if (m) {
+      return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+    }
   }
-  const fallback = new Date(date);
-  fallback.setHours(0, 0, 0, 0);
-  return fallback;
+
+  const d = new Date(date);
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate());
 }
 
 @Injectable()
@@ -293,10 +293,10 @@ export class ReservationService {
     const client = reservation.client;
     const dateReservation = reservation.date
       ? new Date(reservation.date).toLocaleDateString('fr-FR', {
-          day: '2-digit',
-          month: '2-digit',
-          year: 'numeric',
-        })
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+      })
       : '—';
 
     const typeReservationLabel =
