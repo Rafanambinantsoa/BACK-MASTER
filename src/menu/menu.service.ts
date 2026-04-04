@@ -34,7 +34,8 @@ export class MenuService {
     }
     //AJoute l;image url  COMPLTE
     // const baseUrl = process.env.BASE_URL || 'http://localhost:3000/uploads/menu';
-    const baseUrl = 'https://back-master-ztyd.onrender.com/uploads/menu';
+    // const baseUrl = 'https://back-master-ztyd.onrender.com/uploads/menu';
+    const baseUrl = 'https://test-nest.unityfianar.site/uploads/menu';
     if (menuRelation.image) {
       menuRelation['imageUrl'] = `${baseUrl}/${menuRelation.image}`;
     } else {
@@ -48,7 +49,8 @@ export class MenuService {
     const menu = await this.menuRepo.find();
 
     // const baseUrl = process.env.BASE_URL || 'http://localhost:3000/uploads/menu';
-    const baseUrl = 'https://back-master-ztyd.onrender.com/uploads/menu';
+    // const baseUrl = 'https://back-master-ztyd.onrender.com/uploads/menu';
+    const baseUrl = 'https://test-nest.unityfianar.site/uploads/menu';
     return menu.map((menu) => ({
       ...menu,
       imageUrl: menu.image ? `${baseUrl}/${menu.image}` : null,
@@ -64,7 +66,8 @@ export class MenuService {
     return {
       ...data,
       // imageUrl: data.image ? `${process.env.BASE_URL || 'http://localhost:3000/uploads/menu'}/${data.image}` : null,
-      imageUrl: data.image ? `${'https://back-master-ztyd.onrender.com/uploads/menu'}/${data.image}` : null,
+      // imageUrl: data.image ? `${'https://back-master-ztyd.onrender.com/uploads/menu'}/${data.image}` : null,
+      imageUrl: data.image ? `${'https://test-nest.unityfianar.site/uploads/menu'}/${data.image}` : null,
     };
   }
 
