@@ -45,7 +45,7 @@ import { MailModule } from './mail/mail.module';
       autoLoadEntities: true,
       // ⚠️ synchroniser peut casser au démarrage si le schéma DB diffère.
       // Pour le reset OTP, on crée la table explicitement côté script/DB.
-      synchronize: false,
+      synchronize: true,
     }),
     TasksModule,
     UserModule,
